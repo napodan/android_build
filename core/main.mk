@@ -420,11 +420,6 @@ subdirs := \
 	build/libs \
 	build/target \
 	build/tools/acp \
-	build/tools/apriori \
-	build/tools/kcm \
-	build/tools/soslim \
-	external/elfcopy \
-	external/elfutils \
 	external/yaffs2 \
 	external/zlib
 else	# !BUILD_TINY_ANDROID
