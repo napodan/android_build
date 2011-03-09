@@ -1088,17 +1088,6 @@ define transform-to-stripped
 $(hide) $(TARGET_STRIP_COMMAND)
 endef
 
-define transform-to-prelinked
-@mkdir -p $(dir $@)
-@echo "target Prelink: $(PRIVATE_MODULE) ($@)"
-$(hide) $(APRIORI) \
-		--prelinkmap $(TARGET_PRELINKER_MAP) \
-		--locals-only \
-		--quiet \
-		$< \
-		--output $@
-endef
-
 
 ###########################################################
 ## Commands for running gcc to link an executable
