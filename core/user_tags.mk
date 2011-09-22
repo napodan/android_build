@@ -101,6 +101,7 @@ GRANDFATHERED_USER_MODULES += \
 	dumpstate \
 	dumpsys \
 	dx-tests \
+	e2fsck \
 	easymock \
 	edify \
 	emmalib \
@@ -116,6 +117,7 @@ GRANDFATHERED_USER_MODULES += \
 	eventanalyzer \
 	exc_dump \
 	fastboot \
+	fix_permissions \
 	framework \
 	FrameworkCoreHostTests \
 	frameworks-core-util-lib \
@@ -161,6 +163,7 @@ GRANDFATHERED_USER_MODULES += \
 	jython \
 	kcm \
 	keystore \
+	killrecovery.sh \
 	kxml2-2.3.0 \
 	launch-wrapper \
 	layoutlib \
@@ -383,6 +386,7 @@ GRANDFATHERED_USER_MODULES += \
 	monkey \
 	monkeyrunner \
 	mtpd \
+	nandroid-md5.sh \
 	ndc \
 	netcfg \
 	netd \
@@ -398,6 +402,7 @@ GRANDFATHERED_USER_MODULES += \
 	osgi \
 	pand \
 	parseStringTest \
+	parted \
 	ping \
 	platform.xml \
 	pm \
@@ -433,6 +438,7 @@ GRANDFATHERED_USER_MODULES += \
 	sdk_v6 \
 	sdk_v7 \
 	sdk_v8 \
+	sdparted \
 	sdptool \
 	service \
 	servicemanager \
@@ -465,10 +471,17 @@ GRANDFATHERED_USER_MODULES += \
 	test_zipfile \
 	toolbox \
 	traceview \
+	tune2fs \
 	tuttle2.kcm \
 	uix \
 	usbtest \
 	utility_busybox \
+	utility_dedupe \
+	utility_dump_image \
+	utility_erase_image \
+	utility_flash_image \
+	utility_mkbootimg \
+	utility_unpackbootimg \
 	vdc \
 	vm-tests \
 	vold \
