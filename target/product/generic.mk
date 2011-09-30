@@ -36,10 +36,7 @@ PRODUCT_PACKAGES := \
     Launcher2 \
     Mms \
     Music \
-    Provision \
     Phone \
-    Protips \
-    QuickSearchBox \
     Settings \
     Sync \
     SystemUI \

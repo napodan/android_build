@@ -18,31 +18,12 @@
 # Open-Source part of the tree. This is a base configuration to
 # bes used for AOSP builds on various target devices.
 
-PRODUCT_PACKAGES := \
-    OpenWnn \
-    PinyinIME \
-    VoiceDialer \
-    libWnnEngDic \
-    libWnnJpnDic \
-    libwnndict
-
-# Additional settings used in all AOSP builds
-PRODUCT_PROPERTY_OVERRIDES := \
-    keyguard.no_require_sim=true \
-    ro.com.android.dateformat=MM-dd-yyyy \
-    ro.com.android.dataroaming=true
-
-# Put en_US first in the list, to make it default.
-PRODUCT_LOCALES := en_US
-
-# Pick up some sounds - stick with the short list to save space
-# on smaller devices.
-$(call inherit-product-if-exists, frameworks/base/data/sounds/OriginalAudio.mk)
+$(call inherit-product, frameworks/base/data/sounds/AudioPackage5.mk)
 
 # Get the TTS language packs
 $(call inherit-product-if-exists, external/svox/pico/lang/all_pico_languages.mk)
 
 # Get the list of languages.
-$(call inherit-product, $(SRC_TARGET_DIR)/product/locales_full.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/generic.mk)
