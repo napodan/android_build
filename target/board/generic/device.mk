@@ -16,11 +16,3 @@
 
 # This is a build configuration for the product aspects that
 # are specific to the emulator.
-
-PRODUCT_PROPERTY_OVERRIDES := \
-    ro.ril.hsxpa=1 \
-    ro.ril.gprsclass=10
-
-PRODUCT_COPY_FILES := \
-    development/data/etc/apns-conf.xml:system/etc/apns-conf.xml \
-    development/data/etc/vold.conf:system/etc/vold.conf
