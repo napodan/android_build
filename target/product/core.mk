@@ -18,6 +18,7 @@ PRODUCT_BRAND := generic
 PRODUCT_DEVICE := generic
 PRODUCT_NAME := core
 
+# BEGIN privacy-added: PDroid
 PRODUCT_PACKAGES := \
     ApplicationsProvider \
     BackupRestoreConfirmation \
@@ -31,6 +32,7 @@ PRODUCT_PACKAGES := \
     Home \
     KeyChain \
     MediaProvider \
+    PDroid \
     PackageInstaller \
     PicoTts \
     SettingsProvider \
@@ -118,6 +120,7 @@ PRODUCT_PACKAGES := \
     sensorservice \
     lint \
     uiautomator
+# END privacy-added: PDroid
 
 PRODUCT_COPY_FILES += \
     system/core/rootdir/init.usb.rc:root/init.usb.rc \
