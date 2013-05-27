@@ -14,6 +14,11 @@ else
 SHELL := /bin/bash
 endif
 
+# Utility variables.
+empty :=
+space := $(empty) $(empty)
+comma := ,
+
 # Tell python not to spam the source tree with .pyc files.  This
 # only has an effect on python 2.6 and above.
 export PYTHONDONTWRITEBYTECODE := 1
@@ -294,6 +299,13 @@ ifeq ($(HOST_OS),darwin)
 MD5SUM:=md5 -q
 else
 MD5SUM:=md5sum
+endif
+
+# The default key if not set as LOCAL_CERTIFICATE
+ifdef PRODUCT_DEFAULT_DEV_CERTIFICATE
+  DEFAULT_SYSTEM_DEV_CERTIFICATE := $(PRODUCT_DEFAULT_DEV_CERTIFICATE)
+else
+  DEFAULT_SYSTEM_DEV_CERTIFICATE := build/target/product/security/testkey
 endif
 
 # ###############################################################

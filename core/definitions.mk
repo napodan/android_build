@@ -66,7 +66,7 @@ ALL_GENERATED_SOURCES:=
 # These all have an order-only dependency on the copied headers
 ALL_C_CPP_ETC_OBJECTS:=
 
-# The list of dynamic binaries that haven't been stripped/compressed/prelinked.
+# The list of dynamic binaries that haven't been stripped/compressed/etc.
 ALL_ORIGINAL_DYNAMIC_BINARIES:=
 
 # These files go into the SDK
@@ -525,10 +525,6 @@ endef
 ###########################################################
 ## Convert "a b c" into "a:b:c"
 ###########################################################
-
-empty :=
-space := $(empty) $(empty)
-
 define normalize-path-list
 $(subst $(space),:,$(strip $(1)))
 endef
@@ -1565,6 +1561,28 @@ $(2): $(1) | $(ACP)
 	$$(copy-file-to-target)
 endef
 
+# Copies many files.
+# $(1): The files to copy.  Each entry is a ':' separated src:dst pair
+# Evaluates to the list of the dst files (ie suitable for a dependency list)
+define copy-many-files
+$(foreach f, $(1), $(strip \
+    $(eval _cmf_tuple := $(subst :, ,$(f))) \
+    $(eval _cmf_src := $(word 1,$(_cmf_tuple))) \
+    $(eval _cmf_dest := $(word 2,$(_cmf_tuple))) \
+    $(eval $(call copy-one-file,$(_cmf_src),$(_cmf_dest))) \
+    $(_cmf_dest)))
+endef
+
+# Copy the file only if it's a well-formed xml file. For use via $(eval).
+# $(1): source file
+# $(2): destination file, must end with .xml.
+define copy-xml-file-checked
+$(2): $(1) | $(ACP)
+	@echo "Copy xml: $$@"
+	$(hide) xmllint $$< >/dev/null  # Don't print the xml file to stdout.
+	$$(copy-file-to-target)
+endef
+
 # The -t option to acp and the -p option to cp is
 # required for OSX.  OSX has a ridiculous restriction
 # where it's an error for a .a file's modification time
@@ -1731,7 +1749,6 @@ $(if $(2), \
   size=$$(for i in $(1); do $(call get-file-size,$$i); echo +; done; echo 0); \
   total=$$(( $$( echo "$$size" ) )); \
   printname=$$(echo -n "$(1)" | tr " " +); \
-  echo "$$printname total size is $$total"; \
   img_blocksize=$(call image-size-from-data-size,$(BOARD_FLASH_BLOCK_SIZE)); \
   if [ "$(3)" == "yaffs" ]; then \
     reservedblocks=8; \
@@ -1743,6 +1760,7 @@ $(if $(2), \
   reserve=$$(((twoblocks > onepct ? twoblocks : onepct) + \
                reservedblocks * img_blocksize)); \
   maxsize=$$(($(2) - reserve)); \
+  echo "$$printname maxsize=$$maxsize blocksize=$$img_blocksize total=$$total reserve=$$reserve"; \
   if [ "$$total" -gt "$$maxsize" ]; then \
     echo "error: $$printname too large ($$total > [$(2) - $$reserve])"; \
     false; \
