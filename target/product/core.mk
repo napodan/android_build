@@ -37,6 +37,7 @@ PRODUCT_PACKAGES := \
     framework-res \
     hprof-conv \
     icu.dat \
+    iptables \
     jasmin \
     jasmin.jar \
     libcrypto \
