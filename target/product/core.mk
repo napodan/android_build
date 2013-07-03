@@ -70,7 +70,11 @@ PRODUCT_PACKAGES := \
     UserDictionaryProvider \
     PackageInstaller \
     DefaultContainerService \
-    Bugreport
+    Bugreport \
+    zoneinfo.dat \
+    zoneinfo.idx \
+    zoneinfo.version
+
 
 # host-only dependencies
 ifeq ($(WITH_HOST_DALVIK),true)
