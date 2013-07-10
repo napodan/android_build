@@ -22,4 +22,9 @@
 LOCAL_UNINSTALLABLE_MODULE := true
 LOCAL_IS_STATIC_JAVA_LIBRARY := true
 include $(BUILD_SYSTEM)/java_library.mk
+ifneq (,$(filter-out current, $(LOCAL_SDK_VERSION)))
+$(R_file_stamp): PRIVATE_DEFAULT_APP_TARGET_SDK := $(LOCAL_SDK_VERSION)
+else
+$(R_file_stamp): PRIVATE_DEFAULT_APP_TARGET_SDK := $(DEFAULT_APP_TARGET_SDK)
+endif
 LOCAL_IS_STATIC_JAVA_LIBRARY :=

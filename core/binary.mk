@@ -470,11 +470,16 @@ built_whole_libraries := \
 # We don't care about installed static libraries, since the
 # libraries have already been linked into the module at that point.
 # We do, however, care about the NOTICE files for any static
-# libraries that we use. (see notice_files.make)
+# libraries that we use. (see notice_files.mk)
 
 installed_static_library_notice_file_targets := \
     $(foreach lib,$(LOCAL_STATIC_LIBRARIES) $(LOCAL_WHOLE_STATIC_LIBRARIES), \
       NOTICE-$(if $(LOCAL_IS_HOST_MODULE),HOST,TARGET)-STATIC_LIBRARIES-$(lib))
+
+# Default is -fno-rtti.
+ifeq ($(strip $(LOCAL_RTTI_FLAG)),)
+LOCAL_RTTI_FLAG := -fno-rtti
+endif
 
 ###########################################################
 # Rule-specific variable definitions
@@ -483,10 +488,13 @@ $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_YACCFLAGS := $(LOCAL_YACCFLAGS)
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_ASFLAGS := $(LOCAL_ASFLAGS)
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_CFLAGS := $(LOCAL_CFLAGS)
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_CPPFLAGS := $(LOCAL_CPPFLAGS)
+$(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_RTTI_FLAG := $(LOCAL_RTTI_FLAG)
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_DEBUG_CFLAGS := $(debug_cflags)
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_C_INCLUDES := $(LOCAL_C_INCLUDES)
+$(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_IMPORT_INCLUDES := $(import_includes)
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_LDFLAGS := $(LOCAL_LDFLAGS)
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_LDLIBS := $(LOCAL_LDLIBS)
+$(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_NO_CRT := $(LOCAL_NO_CRT)
 
 # this is really the way to get the files onto the command line instead
 # of using $^, because then LOCAL_ADDITIONAL_DEPENDENCIES doesn't work
