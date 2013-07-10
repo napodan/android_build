@@ -37,7 +37,9 @@ PRODUCT_PACKAGES := \
     framework-res \
     hprof-conv \
     icu.dat \
+    installd \
     iptables \
+    keystore \
     jasmin \
     jasmin.jar \
     libcrypto \
@@ -84,3 +86,15 @@ ifeq ($(WITH_HOST_DALVIK),true)
         core-hostdex \
         libjavacore-host
 endif
+
+ifeq ($(HAVE_SELINUX),true)
+    PRODUCT_PACKAGES += \
+        sepolicy \
+        file_contexts \
+        seapp_contexts \
+        property_contexts \
+        mac_permissions.xml
+endif
+
+$(call inherit-product, $(SRC_TARGET_DIR)/product/base.mk)
+

@@ -16,7 +16,12 @@
 
 #
 # Functions for including AndroidProducts.mk files
-#
+# PRODUCT_MAKEFILES is set up in AndroidProducts.mks.
+# Format of PRODUCT_MAKEFILES:
+# <product_name>:<path_to_the_product_makefile>
+# If the <product_name> is the same as the base file name (without dir
+# and the .mk suffix) of the product makefile, "<product_name>:" can be
+# omitted.
 
 #
 # Returns the list of all AndroidProducts.mk files.
@@ -188,4 +193,86 @@ define _resolve-short-product-name
 endef
 define resolve-short-product-name
 $(strip $(call _resolve-short-product-name,$(1)))
+endef
+
+
+_product_stash_var_list := $(_product_var_list) \
+	TARGET_ARCH \
+	TARGET_ARCH_VARIANT \
+	TARGET_BOARD_PLATFORM \
+	TARGET_BOARD_PLATFORM_GPU \
+	TARGET_BOARD_KERNEL_HEADERS \
+	TARGET_DEVICE_KERNEL_HEADERS \
+	TARGET_PRODUCT_KERNEL_HEADERS \
+	TARGET_BOOTLOADER_BOARD_NAME \
+	TARGET_COMPRESS_MODULE_SYMBOLS \
+	TARGET_NO_BOOTLOADER \
+	TARGET_NO_KERNEL \
+	TARGET_NO_RECOVERY \
+	TARGET_NO_RADIOIMAGE \
+	TARGET_HARDWARE_3D \
+	TARGET_PROVIDES_INIT_RC \
+	TARGET_CPU_ABI \
+	TARGET_CPU_ABI2 \
+	TARGET_CPU_SMP \
+
+
+_product_stash_var_list += \
+	BOARD_WPA_SUPPLICANT_DRIVER \
+	BOARD_WLAN_DEVICE \
+	BOARD_USES_GENERIC_AUDIO \
+	BOARD_KERNEL_CMDLINE \
+	BOARD_KERNEL_BASE \
+	BOARD_HAVE_BLUETOOTH \
+	BOARD_HAVE_BLUETOOTH_BCM \
+	BOARD_HAVE_BLUETOOTH_QCOM \
+	BOARD_VENDOR_QCOM_AMSS_VERSION \
+	BOARD_VENDOR_USE_AKMD \
+	BOARD_EGL_CFG \
+	BOARD_BOOTIMAGE_PARTITION_SIZE \
+	BOARD_RECOVERYIMAGE_PARTITION_SIZE \
+	BOARD_SYSTEMIMAGE_PARTITION_SIZE \
+	BOARD_USERDATAIMAGE_PARTITION_SIZE \
+	BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE \
+	BOARD_CACHEIMAGE_PARTITION_SIZE \
+	BOARD_FLASH_BLOCK_SIZE \
+	BOARD_SYSTEMIMAGE_PARTITION_SIZE \
+	BOARD_VENDOR_QCOM_GPS_LOC_API_HARDWARE \
+	BOARD_VENDOR_QCOM_GPS_LOC_API_AMSS_VERSION \
+	BOARD_INSTALLER_CMDLINE \
+
+
+_product_stash_var_list += \
+	DEFAULT_SYSTEM_DEV_CERTIFICATE
+
+#
+# Stash vaues of the variables in _product_stash_var_list.
+# $(1): Renamed prefix
+#
+define stash-product-vars
+$(foreach v,$(_product_stash_var_list), \
+        $(eval $(strip $(1))_$(call rot13,$(v)):=$$($$(v))) \
+ )
+endef
+
+#
+# Assert that the the variable stashed by stash-product-vars remains untouched.
+# $(1): The prefix as supplied to stash-product-vars
+#
+define assert-product-vars
+$(strip \
+  $(eval changed_variables:=)
+  $(foreach v,$(_product_stash_var_list), \
+    $(if $(call streq,$($(v)),$($(strip $(1))_$(call rot13,$(v)))),, \
+        $(eval $(warning $(v) has been modified: $($(v)))) \
+        $(eval $(warning previous value: $($(strip $(1))_$(call rot13,$(v))))) \
+        $(eval changed_variables := $(changed_variables) $(v))) \
+   ) \
+  $(if $(changed_variables),\
+    $(eval $(error The following variables have been changed: $(changed_variables))),)
+)
+endef
+
+define add-to-product-copy-files-if-exists
+$(if $(wildcard $(word 1,$(subst :, ,$(1)))),$(1))
 endef
