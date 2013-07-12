@@ -87,10 +87,8 @@ class EdifyGenerator(object):
 
   def AssertDevice(self, device):
     """Assert that the device identifier is the given string."""
-    cmd = ('assert(' + 
-           ' || \0'.join(['getprop("ro.product.device") == "%s" || getprop("ro.build.product") == "%s" || getprop("ro.product.board") == "%s"'
-                         % (i, i, i) for i in device.split(",")]) + 
-           ');')
+    cmd = ('assert(getprop("ro.product.device") == "%s" ||\0'
+           'getprop("ro.build.product") == "%s");' % (device, device))
     self.script.append(self._WordWrap(cmd))
 
   def AssertSomeBootloader(self, *bootloaders):
@@ -163,11 +161,13 @@ class EdifyGenerator(object):
     """Format the given partition, specified by its mount point (eg,
     "/system")."""
 
+    reserve_size = 0
     fstab = self.info.get("fstab", None)
     if fstab:
       p = fstab[partition]
-      self.script.append('format("%s", "%s", "%s");' %
-                         (p.fs_type, common.PARTITION_TYPES[p.fs_type], p.device))
+      self.script.append('format("%s", "%s", "%s", "%s", "%s");' %
+                         (p.fs_type, common.PARTITION_TYPES[p.fs_type],
+                          p.device, p.length, p.mount_point))
 
   def DeleteFiles(self, file_list):
     """Delete all files in file_list."""
@@ -189,18 +189,6 @@ class EdifyGenerator(object):
     cmd = "".join(cmd)
     self.script.append(self._WordWrap(cmd))
 
-  def WriteFirmwareImage(self, kind, fn):
-    """Arrange to update the given firmware image (kind must be
-    "hboot" or "radio") when recovery finishes."""
-    if self.version == 1:
-      self.script.append(
-          ('assert(package_extract_file("%(fn)s", "/tmp/%(kind)s.img"),\n'
-           '       write_firmware_image("/tmp/%(kind)s.img", "%(kind)s"));')
-          % {'kind': kind, 'fn': fn})
-    else:
-      self.script.append(
-          'write_firmware_image("PACKAGE:%s", "%s");' % (fn, kind))
-
   def WriteRawImage(self, mount_point, fn):
     """Write the given package file into the partition for the given
     mount point."""
@@ -212,9 +200,8 @@ class EdifyGenerator(object):
       args = {'device': p.device, 'fn': fn}
       if partition_type == "MTD":
         self.script.append(
-            ('assert(package_extract_file("%(fn)s", "/tmp/%(device)s.img"),\n'
-             '       write_raw_image("/tmp/%(device)s.img", "%(device)s"),\n'
-             '       delete("/tmp/%(device)s.img"));') % args)
+            'write_raw_image(package_extract_file("%(fn)s"), "%(device)s");'
+            % args)
       elif partition_type == "EMMC":
         self.script.append(
             'package_extract_file("%(fn)s", "%(device)s");' % args)
