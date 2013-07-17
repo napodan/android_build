@@ -53,9 +53,8 @@ HOST_GLOBAL_CFLAGS += -m32
 HOST_GLOBAL_LDFLAGS += -m32
 endif
 
-HOST_GLOBAL_CFLAGS += -fPIC
-HOST_GLOBAL_CFLAGS += \
-	-include $(call select-android-config-h,linux-x86)
+HOST_GLOBAL_CFLAGS += -fPIC \
+    -include $(call select-android-config-h,linux-x86)
 
 # Disable new longjmp in glibc 2.11 and later. See bug 2967937.
 HOST_GLOBAL_CFLAGS += -D_FORTIFY_SOURCE=0

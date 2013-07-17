@@ -883,20 +883,17 @@ endef
 ###########################################################
 ## Commands for running gcc to compile a C++ file
 ###########################################################
-# -isystem doesn't work with g++ 4.4.3
+# -isystem doesn't work with g++ 4.4.3 and c++ headers
 define transform-cpp-to-o
 @mkdir -p $(dir $@)
 @echo "target $(PRIVATE_ARM_MODE) C++: $(PRIVATE_MODULE) <= $<"
 $(hide) $(PRIVATE_CXX) \
-	$(foreach incdir, \
-	    $(PRIVATE_C_INCLUDES) \
+	$(addprefix -I , $(PRIVATE_C_INCLUDES) $(PRIVATE_TARGET_PROJECT_INCLUDES)) \
+	$(shell cat $(PRIVATE_IMPORT_INCLUDES)) \
+	$(addprefix -isystem ,\
 	    $(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
-		$(PRIVATE_TARGET_PROJECT_INCLUDES) \
-		$(PRIVATE_TARGET_C_INCLUDES) \
-	     ) \
-	  , \
-	    -I $(incdir) \
-	 ) \
+	        $(filter-out $(PRIVATE_C_INCLUDES), \
+	            $(PRIVATE_TARGET_C_INCLUDES)))) \
 	-c \
 	$(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
 	    $(PRIVATE_TARGET_GLOBAL_CFLAGS) \
@@ -983,6 +980,7 @@ define transform-host-cpp-to-o
 @echo "host C++: $(PRIVATE_MODULE) <= $<"
 $(hide) $(PRIVATE_CXX) \
 	$(addprefix -I , $(PRIVATE_C_INCLUDES)) \
+	$(shell cat $(PRIVATE_IMPORT_INCLUDES)) \
 	$(addprefix -isystem ,\
 	    $(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
 	        $(filter-out $(PRIVATE_C_INCLUDES), \
@@ -1627,6 +1625,19 @@ define add-java-resources-to-package
 $(hide) jar uf $@ $(PRIVATE_EXTRA_JAR_ARGS)
 endef
 
+# Add java resources carried by static Java libraries.
+#
+define add-carried-java-resources
+$(hide) if [ -d $(PRIVATE_CLASS_INTERMEDIATES_DIR) ] ; then \
+    java_res_jar_flags=$$(find $(PRIVATE_CLASS_INTERMEDIATES_DIR) -type f -a -not -name "*.class" \
+        | sed -e "s?^$(PRIVATE_CLASS_INTERMEDIATES_DIR)/? -C $(PRIVATE_CLASS_INTERMEDIATES_DIR) ?"); \
+    if [ -n "$$java_res_jar_flags" ] ; then \
+        echo $$java_res_jar_flags >$(dir $@)java_res_jar_flags; \
+        jar uf $@ $$java_res_jar_flags; \
+    fi; \
+fi
+endef
+
 # Sign a package using the specified key/cert.
 #
 define sign-package
@@ -2054,6 +2065,42 @@ define set-inherited-package-variables-internal
   ,)
 endef
 
+###########################################################
+## Expand a module name list with REQUIRED modules
+###########################################################
+# $(1): The variable name that holds the initial module name list.
+#       the variable will be modified to hold the expanded results.
+# $(2): The initial module name list.
+# Returns empty string (maybe with some whitespaces).
+define expand-required-modules
+$(eval _erm_new_modules := $(sort $(filter-out $($(1)),\
+  $(foreach m,$(2),$(ALL_MODULES.$(m).REQUIRED)))))\
+$(if $(_erm_new_modules),$(eval $(1) += $(_erm_new_modules))\
+  $(call expand-required-modules,$(1),$(_erm_new_modules)))
+endef
+
+###########################################################
+## API Check
+###########################################################
+
+# eval this to define a rule that runs apicheck.
+#
+# Args:
+#    $(1)  target
+#    $(2)  stable api file
+#    $(3)  api file to be tested
+#    $(4)  arguments for apicheck
+#    $(5)  command to run if apicheck failed
+#    $(6)  target dependent on this api check
+#    $(7)  additional dependencies
+define check-api
+$(TARGET_OUT_COMMON_INTERMEDIATES)/PACKAGING/$(strip $(1))-timestamp: $(2) $(3) $(APICHECK) $(7)
+	@echo "Checking API:" $(1)
+	$(hide) ( $(APICHECK_COMMAND) $(4) $(2) $(3) || ( $(5) ; exit 38 ) )
+	$(hide) mkdir -p $$(dir $$@)
+	$(hide) touch $$@
+$(6): $(TARGET_OUT_COMMON_INTERMEDIATES)/PACKAGING/$(strip $(1))-timestamp
+endef
 
 ###########################################################
 ## Other includes
