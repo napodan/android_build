@@ -173,6 +173,19 @@ $(info ***************************************************************)
 $(error stopping)
 endif
 
+# -----------------------------------------------------------------
+# Variable to check java support level inside PDK build.
+# Not necessary if the components is not in PDK.
+# not defined : not supported
+# "sdk" : sdk API only
+# "platform" : platform API supproted
+TARGET_BUILD_JAVA_SUPPORT_LEVEL := platform
+
+# -----------------------------------------------------------------
+# The pdk (Platform Development Kit) build
+include build/core/pdk_config.mk
+
+# -----------------------------------------------------------------
 ###
 ### In this section we set up the things that are different
 ### between the build variants
