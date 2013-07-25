@@ -347,7 +347,7 @@ PREBUILT_IS_PRESENT := $(if $(wildcard prebuilt/Android.mk),true)
 # For use with the LOCAL_SDK_VERSION variable for include $(BUILD_PACKAGE)
 # ###############################################################
 
-HISTORICAL_SDK_VERSIONS_ROOT := $(TOPDIR)prebuilt/sdk
+HISTORICAL_SDK_VERSIONS_ROOT := $(TOPDIR)prebuilts/sdk
 HISTORICAL_NDK_VERSIONS_ROOT := $(TOPDIR)prebuilt/ndk
 
 # Historical SDK version N is stored in $(HISTORICAL_SDK_VERSIONS_ROOT)/N.
@@ -366,7 +366,7 @@ $(shell function sgrax() { \
     ( sgrax $(1) | sort -g ) )
 endef
 
-TARGET_AVAILABLE_SDK_VERSIONS := current $(call numerically_sort,\
+TARGET_AVAILABLE_SDK_VERSIONS := $(call numerically_sort,\
     $(patsubst $(HISTORICAL_SDK_VERSIONS_ROOT)/%/android.jar,%, \
     $(wildcard $(HISTORICAL_SDK_VERSIONS_ROOT)/*/android.jar)))
 
