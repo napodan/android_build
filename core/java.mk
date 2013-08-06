@@ -3,6 +3,11 @@
 # LOCAL_MODULE_CLASS
 # all_res_assets
 
+ifdef LOCAL_SDK_VERSION
+    $(warning $(LOCAL_PATH): LOCAL_SDK_VERSION removed.)
+    LOCAL_SDK_VERSION :=
+endif
+
 # Make sure there's something to build.
 # It's possible to build a package that doesn't contain any classes.
 ifeq (,$(strip $(LOCAL_SRC_FILES)$(all_res_assets)))
