@@ -354,4 +354,6 @@
  */
 #define HAVE_PRINTF_ZD 1
 
+#define __ANDROID__
+
 #endif /* _ANDROID_CONFIG_H */

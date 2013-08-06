@@ -5,15 +5,13 @@
 ## The list of object files is exported in $(all_objects).
 ###########################################################
 
-######################################
-## Sanity check for LOCAL_NDK_VERSION
-######################################
-my_ndk_version_root :=
-ifeq ($(TARGET_SIMULATOR),true)
-  # NDK does not support sim build.
-  LOCAL_NDK_VERSION :=
+ifdef LOCAL_SDK_VERSION
+    $(warning $(LOCAL_PATH): LOCAL_SDK_VERSION removed.)
+    LOCAL_SDK_VERSION :=
 endif
-ifdef LOCAL_NDK_VERSION
+my_ndk_version_root :=
+ifdef LOCAL_SDK_VERSION
+    $(error $(LOCAL_PATH): oxygen error LOCAL_SDK_VERSION is used.)
   ifdef LOCAL_IS_HOST_MODULE
     $(error $(LOCAL_PATH): LOCAL_NDK_VERSION can not be used in host module)
   endif

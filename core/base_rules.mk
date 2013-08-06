@@ -195,6 +195,8 @@ endif
 aidl_preprocess_import :=
 LOCAL_SDK_VERSION:=$(strip $(LOCAL_SDK_VERSION))
 ifdef LOCAL_SDK_VERSION
+    $(error $(LOCAL_PATH): oxygen error LOCAL_SDK_VERSION is used.)
+
 ifeq ($(LOCAL_SDK_VERSION),current)
   aidl_preprocess_import := $(TARGET_OUT_COMMON_INTERMEDIATES)/framework.aidl
 else
