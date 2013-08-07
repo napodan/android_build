@@ -28,7 +28,7 @@ def perform_find(mindepth, prune, dirlist, filename):
   pruneleaves = set(map(lambda x: os.path.split(x)[1], prune))
   for rootdir in dirlist:
     rootdepth = rootdir.count("/")
-    for root, dirs, files in os.walk(rootdir):
+    for root, dirs, files in os.walk(rootdir, followlinks=True):
       # prune
       check_prune = False
       for d in dirs:
@@ -89,9 +89,9 @@ def main(argv):
     usage()
   dirlist = argv[i:-1]
   filename = argv[-1]
-  results = perform_find(mindepth, prune, dirlist, filename)
+  results = list(set(perform_find(mindepth, prune, dirlist, filename)))
   results.sort()
-  for r in set(results):
+  for r in results:
     print r
 
 if __name__ == "__main__":
