@@ -326,13 +326,9 @@ TARGET_PROJECT_INCLUDES:= $(SRC_HEADERS) $(TARGET_OUT_HEADERS)
 
 # Many host compilers don't support these flags, so we have to make
 # sure to only specify them for the target compilers checked in to
-# the source tree. The simulator passes the target flags to the
-# host compiler, so only set them for the target when the target
-# is not the simulator.
-ifneq ($(TARGET_SIMULATOR),true)
+# the source tree.
 TARGET_GLOBAL_CFLAGS += $(TARGET_ERROR_FLAGS)
 TARGET_GLOBAL_CPPFLAGS += $(TARGET_ERROR_FLAGS)
-endif
 
 HOST_GLOBAL_CFLAGS += $(HOST_RELEASE_CFLAGS)
 HOST_GLOBAL_CPPFLAGS += $(HOST_RELEASE_CPPFLAGS)
@@ -342,13 +338,16 @@ TARGET_GLOBAL_CPPFLAGS += $(TARGET_RELEASE_CPPFLAGS) $(BOARD_GLOBAL_CFLAGS)
 
 PREBUILT_IS_PRESENT := $(if $(wildcard prebuilt/Android.mk),true)
 
+# define llvm tools and global flags
+include $(BUILD_SYSTEM)/llvm_config.mk
+
 # ###############################################################
 # Collect a list of the SDK versions that we could compile against
 # For use with the LOCAL_SDK_VERSION variable for include $(BUILD_PACKAGE)
 # ###############################################################
 
 HISTORICAL_SDK_VERSIONS_ROOT := $(TOPDIR)prebuilts/sdk
-HISTORICAL_NDK_VERSIONS_ROOT := $(TOPDIR)prebuilt/ndk
+HISTORICAL_NDK_VERSIONS_ROOT := $(TOPDIR)prebuilts/ndk
 
 # Historical SDK version N is stored in $(HISTORICAL_SDK_VERSIONS_ROOT)/N.
 # The 'current' version is whatever this source tree is.
@@ -370,8 +369,5 @@ TARGET_AVAILABLE_SDK_VERSIONS := $(call numerically_sort,\
     $(patsubst $(HISTORICAL_SDK_VERSIONS_ROOT)/%/android.jar,%, \
     $(wildcard $(HISTORICAL_SDK_VERSIONS_ROOT)/*/android.jar)))
 
-TARGET_AVAILABLE_NDK_VERSIONS := $(call numerically_sort,\
-    $(patsubst $(HISTORICAL_NDK_VERSIONS_ROOT)/android-ndk-r%,%, \
-    $(wildcard $(HISTORICAL_NDK_VERSIONS_ROOT)/android-ndk-r*)))
 
 INTERNAL_PLATFORM_API_FILE := $(TARGET_OUT_COMMON_INTERMEDIATES)/PACKAGING/public_api.xml
