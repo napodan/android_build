@@ -12,6 +12,13 @@ endif
 # this turns off the suffix rules built into make
 .SUFFIXES:
 
+# this turns off the RCS / SCCS implicit rules of GNU Make
+% : RCS/%,v
+% : RCS/%
+% : %,v
+% : s.%
+% : SCCS/s.%
+
 # If a rule fails, delete $@.
 .DELETE_ON_ERROR:
 
@@ -54,11 +61,14 @@ $(DEFAULT_GOAL):
 .PHONY: FORCE
 FORCE:
 
+# Targets that provide quick help on the build system.
+include $(BUILD_SYSTEM)/help.mk
+
 # Set up various standard variables based on configuration
 # and host information.
 include $(BUILD_SYSTEM)/config.mk
 
-# This allows us to force a clean build - included after the config.make
+# This allows us to force a clean build - included after the config.mk
 # environment setup is done, but before we generate any dependencies.  This
 # file does the rm -rf inline so the deps which are all done below will
 # be generated correctly
@@ -784,3 +794,8 @@ modules:
 .PHONY: showcommands
 showcommands:
 	@echo >/dev/null
+
+
+.PHONY: nothing
+nothing:
+	@echo Successfully read the makefiles.
