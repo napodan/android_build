@@ -3,15 +3,25 @@
 # LOCAL_MODULE_CLASS
 # all_res_assets
 
-ifdef LOCAL_SDK_VERSION
-    $(warning $(LOCAL_PATH): LOCAL_SDK_VERSION removed.)
-    LOCAL_SDK_VERSION :=
+LOCAL_SDK_VERSION :=
+
+ifeq ($(TARGET_BUILD_PDK),true)
+ifeq ($(TARGET_BUILD_PDK_JAVA_PLATFORM),)
+# LOCAL_SDK not defined or set to current
+ifeq ($(filter-out current,$(LOCAL_SDK_VERSION)),)
+LOCAL_SDK_VERSION := $(PDK_BUILD_SDK_VERSION)
 endif
+endif # !PDK_JAVA
+endif #PDK
+
 
 # Make sure there's something to build.
 # It's possible to build a package that doesn't contain any classes.
-ifeq (,$(strip $(LOCAL_SRC_FILES)$(all_res_assets)))
-$(error $(LOCAL_PATH): Target java module does not define any source or resource files)
+# LOCAL_SOURCE_FILES_ALL_GENERATED is set only if the module does not have static source files,
+# but generated source files in its LOCAL_INTERMEDIATE_SOURCE_DIR.
+# You have to set up the dependency in some other way.
+ifeq (,$(strip $(LOCAL_SRC_FILES)$(all_res_assets)$(LOCAL_STATIC_JAVA_LIBRARIES))$(filter true,$(LOCAL_SOURCE_FILES_ALL_GENERATED)))
+$(warning $(LOCAL_PATH): Target java module does not define any source or resource files)
 endif
 
 LOCAL_NO_STANDARD_LIBRARIES:=$(strip $(LOCAL_NO_STANDARD_LIBRARIES))
@@ -25,8 +35,9 @@ ifneq ($(LOCAL_SDK_VERSION),)
       $(error $(LOCAL_PATH): Invalid LOCAL_SDK_VERSION '$(LOCAL_SDK_VERSION)' \
              Choices are: $(TARGET_AVAILABLE_SDK_VERSIONS))
     else
-      ifeq ($(LOCAL_SDK_VERSION),current)
-        LOCAL_JAVA_LIBRARIES := android_stubs_$(LOCAL_SDK_VERSION) $(LOCAL_JAVA_LIBRARIES)
+      ifeq ($(LOCAL_SDK_VERSION)$(TARGET_BUILD_APPS),current)
+        # Use android_stubs_current if LOCAL_SDK_VERSION is current and no TARGET_BUILD_APPS.
+        LOCAL_JAVA_LIBRARIES := android_stubs_current $(LOCAL_JAVA_LIBRARIES)
       else
         LOCAL_JAVA_LIBRARIES := sdk_v$(LOCAL_SDK_VERSION) $(LOCAL_JAVA_LIBRARIES)
       endif
@@ -37,6 +48,20 @@ else
     LOCAL_JAVA_LIBRARIES := core core-junit ext framework $(LOCAL_JAVA_LIBRARIES)
   endif
 endif
+
+proto_sources := $(filter %.proto,$(LOCAL_SRC_FILES))
+ifneq ($(proto_sources),)
+ifeq ($(LOCAL_PROTOC_OPTIMIZE_TYPE),micro)
+    LOCAL_STATIC_JAVA_LIBRARIES += libprotobuf-java-2.3.0-micro
+else
+  ifeq ($(LOCAL_PROTOC_OPTIMIZE_TYPE),nano)
+    LOCAL_STATIC_JAVA_LIBRARIES += libprotobuf-java-2.3.0-nano
+  else
+    LOCAL_STATIC_JAVA_LIBRARIES += libprotobuf-java-2.3.0-lite
+  endif
+endif
+endif
+
 LOCAL_JAVA_LIBRARIES := $(sort $(LOCAL_JAVA_LIBRARIES))
 
 LOCAL_BUILT_MODULE_STEM := $(strip $(LOCAL_BUILT_MODULE_STEM))
@@ -56,14 +81,8 @@ endif
 intermediates := $(call local-intermediates-dir)
 intermediates.COMMON := $(call local-intermediates-dir,COMMON)
 
-# Emma source code coverage
-ifneq ($(EMMA_INSTRUMENT),true)
-LOCAL_NO_EMMA_INSTRUMENT := true
-LOCAL_NO_EMMA_COMPILE := true
-endif
-
 # Choose leaf name for the compiled jar file.
-ifneq ($(LOCAL_NO_EMMA_COMPILE),true)
+ifeq ($(LOCAL_EMMA_INSTRUMENT),true)
 full_classes_compiled_jar_leaf := classes-no-debug-var.jar
 built_dex_intermediate_leaf := classes-no-local.dex
 else
@@ -83,7 +102,7 @@ endif
 ifdef LOCAL_PROGUARD_ENABLED
 proguard_jar_leaf := proguard.classes.jar
 built_dex_intermediate_leaf := proguard.$(built_dex_intermediate_leaf)
-built_dex_leaf := progaurd.classes.dex
+built_dex_leaf := proguard.classes.dex
 else
 proguard_jar_leaf := noproguard.classes.jar
 built_dex_intermediate_leaf := noproguard.$(built_dex_intermediate_leaf)
@@ -118,6 +137,122 @@ LOCAL_INTERMEDIATE_TARGETS += \
 
 LOCAL_INTERMEDIATE_SOURCE_DIR := $(intermediates.COMMON)/src
 
+###############################################################
+## .rs files: RenderScript sources to .java files and .bc files
+## .fs files: Filterscript sources to .java files and .bc files
+###############################################################
+renderscript_sources := $(filter %.rs %.fs,$(LOCAL_SRC_FILES))
+# Because names of the java files from RenderScript are unknown until the
+# .rs file(s) are compiled, we have to depend on a timestamp file.
+RenderScript_file_stamp :=
+rs_compatibility_jni_libs :=
+ifneq ($(renderscript_sources),)
+renderscript_sources_fullpath := $(addprefix $(LOCAL_PATH)/, $(renderscript_sources))
+RenderScript_file_stamp := $(LOCAL_INTERMEDIATE_SOURCE_DIR)/RenderScript.stamp
+renderscript_intermediate.COMMON := $(LOCAL_INTERMEDIATE_SOURCE_DIR)/renderscript
+
+renderscript_target_api :=
+
+ifneq (,$(LOCAL_RENDERSCRIPT_TARGET_API))
+renderscript_target_api := $(LOCAL_RENDERSCRIPT_TARGET_API)
+else
+ifneq (,$(LOCAL_SDK_VERSION))
+# Set target-api for LOCAL_SDK_VERSIONs other than current.
+ifneq (,$(filter-out current, $(LOCAL_SDK_VERSION)))
+renderscript_target_api := $(LOCAL_SDK_VERSION)
+endif
+endif  # LOCAL_SDK_VERSION is set
+endif  # LOCAL_RENDERSCRIPT_TARGET_API is set
+
+ifeq ($(LOCAL_RENDERSCRIPT_CC),)
+LOCAL_RENDERSCRIPT_CC := $(LLVM_RS_CC)
+endif
+
+# Turn on all warnings and warnings as errors for RS compiles.
+# This can be disabled with LOCAL_RENDERSCRIPT_FLAGS := -Wno-error
+renderscript_flags := -Wall -Werror
+renderscript_flags += $(LOCAL_RENDERSCRIPT_FLAGS)
+
+# prepend the RenderScript system include path
+ifneq ($(filter-out current,$(LOCAL_SDK_VERSION))$(if $(TARGET_BUILD_APPS),$(filter current,$(LOCAL_SDK_VERSION))),)
+# if a numeric LOCAL_SDK_VERSION, or current LOCAL_SDK_VERSION with TARGET_BUILD_APPS
+LOCAL_RENDERSCRIPT_INCLUDES := \
+    $(HISTORICAL_SDK_VERSIONS_ROOT)/renderscript/clang-include \
+    $(HISTORICAL_SDK_VERSIONS_ROOT)/renderscript/include \
+    $(LOCAL_RENDERSCRIPT_INCLUDES)
+else
+LOCAL_RENDERSCRIPT_INCLUDES := \
+    $(TOPDIR)external/clang/lib/Headers \
+    $(TOPDIR)frameworks/rs/scriptc \
+    $(LOCAL_RENDERSCRIPT_INCLUDES)
+endif
+
+ifneq ($(LOCAL_RENDERSCRIPT_INCLUDES_OVERRIDE),)
+LOCAL_RENDERSCRIPT_INCLUDES := $(LOCAL_RENDERSCRIPT_INCLUDES_OVERRIDE)
+endif
+
+$(RenderScript_file_stamp): PRIVATE_RS_INCLUDES := $(LOCAL_RENDERSCRIPT_INCLUDES)
+$(RenderScript_file_stamp): PRIVATE_RS_CC := $(LOCAL_RENDERSCRIPT_CC)
+$(RenderScript_file_stamp): PRIVATE_RS_FLAGS := $(renderscript_flags)
+$(RenderScript_file_stamp): PRIVATE_RS_SOURCE_FILES := $(renderscript_sources_fullpath)
+# By putting the generated java files into $(LOCAL_INTERMEDIATE_SOURCE_DIR), they will be
+# automatically found by the java compiling function transform-java-to-classes.jar.
+$(RenderScript_file_stamp): PRIVATE_RS_OUTPUT_DIR := $(renderscript_intermediate.COMMON)
+$(RenderScript_file_stamp): PRIVATE_RS_TARGET_API := $(renderscript_target_api)
+$(RenderScript_file_stamp): $(renderscript_sources_fullpath) $(LOCAL_RENDERSCRIPT_CC)
+	$(transform-renderscripts-to-java-and-bc)
+
+ifneq ($(LOCAL_RENDERSCRIPT_COMPATIBILITY),)
+bc_files := $(patsubst %.fs,%.bc, $(patsubst %.rs,%.bc, $(notdir $(renderscript_sources))))
+rs_generated_bc := $(addprefix \
+    $(renderscript_intermediate.COMMON)/res/raw/, $(bc_files))
+
+renderscript_intermediate := $(intermediates)/renderscript
+
+# We don't need the .so files in bundled branches
+# Prevent these from showing up on the device
+ifneq (,$(TARGET_BUILD_APPS))
+
+rs_compatibility_jni_libs := $(addprefix \
+    $(renderscript_intermediate)/librs., \
+    $(patsubst %.bc,%.so, $(bc_files)))
+
+$(rs_generated_bc) : $(RenderScript_file_stamp)
+
+rs_support_lib := $(TARGET_OUT_INTERMEDIATE_LIBRARIES)/libRSSupport.so
+rs_jni_lib := $(TARGET_OUT_INTERMEDIATE_LIBRARIES)/librsjni.so
+LOCAL_JNI_SHARED_LIBRARIES += libRSSupport librsjni
+
+
+
+$(rs_compatibility_jni_libs): $(RenderScript_file_stamp) $(RS_PREBUILT_CLCORE) \
+    $(rs_support_lib) $(rs_jni_lib) $(rs_compiler_rt)
+$(rs_compatibility_jni_libs): $(BCC_COMPAT)
+$(rs_compatibility_jni_libs): PRIVATE_CXX := $(TARGET_CXX)
+$(rs_compatibility_jni_libs): $(renderscript_intermediate)/librs.%.so: \
+    $(renderscript_intermediate.COMMON)/res/raw/%.bc
+	$(transform-bc-to-so)
+
+endif
+
+endif
+
+# include the dependency files (.d) generated by llvm-rs-cc.
+renderscript_generated_dep_files := $(addprefix $(renderscript_intermediate.COMMON)/, \
+    $(patsubst %.fs,%.d, $(patsubst %.rs,%.d, $(notdir $(renderscript_sources)))))
+-include $(renderscript_generated_dep_files)
+
+LOCAL_INTERMEDIATE_TARGETS += $(RenderScript_file_stamp)
+# Make sure the generated resource will be added to the apk.
+LOCAL_RESOURCE_DIR := $(LOCAL_INTERMEDIATE_SOURCE_DIR)/renderscript/res $(LOCAL_RESOURCE_DIR)
+endif
+
+# All of the rules after full_classes_compiled_jar are very unlikely
+# to fail except for bugs in their respective tools.  If you would
+# like to run these rules, add the "all" modifier goal to the make
+# command line.
+java_alternative_checked_module := $(full_classes_compiled_jar)
+
 # TODO: It looks like the only thing we need from base_rules is
 # all_java_sources.  See if we can get that by adding a
 # common_java.mk, and moving the include of base_rules.mk to
@@ -126,6 +261,30 @@ LOCAL_INTERMEDIATE_SOURCE_DIR := $(intermediates.COMMON)/src
 #######################################
 include $(BUILD_SYSTEM)/base_rules.mk
 #######################################
+
+java_alternative_checked_module :=
+
+# Install the RS compatibility libraries to /system/lib/ if necessary
+ifdef rs_compatibility_jni_libs
+installed_rs_compatibility_jni_libs := $(addprefix $(TARGET_OUT_SHARED_LIBRARIES)/,\
+    $(notdir $(rs_compatibility_jni_libs)))
+# Provide a way to skip sources included in multiple projects.
+ifdef LOCAL_RENDERSCRIPT_SKIP_INSTALL
+skip_install_rs_libs := $(patsubst %.rs,%.so, \
+    $(addprefix $(TARGET_OUT_SHARED_LIBRARIES)/librs., \
+    $(notdir $(LOCAL_RENDERSCRIPT_SKIP_INSTALL))))
+installed_rs_compatibility_jni_libs := \
+    $(filter-out $(skip_install_rs_libs),$(installed_rs_compatibility_jni_libs))
+endif
+ifneq (,$(strip $(installed_rs_compatibility_jni_libs)))
+$(installed_rs_compatibility_jni_libs) : $(TARGET_OUT_SHARED_LIBRARIES)/lib%.so : \
+    $(renderscript_intermediate)/lib%.so
+	$(hide) mkdir -p $(dir $@) && cp -f $< $@
+
+# Install them only if the current module is installed.
+$(LOCAL_INSTALLED_MODULE) : $(installed_rs_compatibility_jni_libs)
+endif
+endif
 
 # We use intermediates.COMMON because the classes.jar/.dex files will be
 # common even if LOCAL_BUILT_MODULE isn't.
@@ -143,7 +302,8 @@ $(cleantarget): PRIVATE_CLEAN_FILES += $(intermediates.COMMON)
 # If the module includes java code (i.e., it's not framework-res), compile it.
 full_classes_jar :=
 built_dex :=
-ifneq (,$(strip $(all_java_sources)))
+# need_compile_java is set in base_rules.mk
+ifeq ($(need_compile_java),true)
 
 # If LOCAL_BUILT_MODULE_STEM wasn't overridden by our caller,
 # full_classes_jar will be the same module as LOCAL_BUILT_MODULE.
@@ -167,22 +327,23 @@ $(full_classes_stubs_jar) : $(LOCAL_BUILT_MODULE) | $(ACP)
 	$(hide) $(ACP) -fp $(PRIVATE_SOURCE_FILE) $@
 ALL_MODULES.$(LOCAL_MODULE).STUBS := $(full_classes_stubs_jar)
 
+# The layers file allows you to enforce a layering between java packages.
+# Run build/tools/java-layers.py for more details.
+layers_file := $(addprefix $(LOCAL_PATH)/, $(LOCAL_JAVA_LAYERS_FILE))
+$(full_classes_compiled_jar): PRIVATE_JAVA_LAYERS_FILE := $(layers_file)
+$(full_classes_compiled_jar): PRIVATE_WARNINGS_ENABLE := $(LOCAL_WARNINGS_ENABLE)
+
 # Compile the java files to a .jar file.
 # This intentionally depends on java_sources, not all_java_sources.
 # Deps for generated source files must be handled separately,
 # via deps on the target that generates the sources.
 $(full_classes_compiled_jar): PRIVATE_JAVACFLAGS := $(LOCAL_JAVACFLAGS)
-$(full_classes_compiled_jar): $(java_sources) $(java_resource_sources) $(full_java_lib_deps) $(jar_manifest_file)
+$(full_classes_compiled_jar): PRIVATE_JAR_EXCLUDE_FILES := $(LOCAL_JAR_EXCLUDE_FILES)
+$(full_classes_compiled_jar): PRIVATE_DONT_DELETE_JAR_META_INF := $(LOCAL_DONT_DELETE_JAR_META_INF)
+$(full_classes_compiled_jar): $(java_sources) $(java_resource_sources) $(full_java_lib_deps) \
+        $(jar_manifest_file) $(layers_file) $(RenderScript_file_stamp) \
+        $(proto_java_sources_file_stamp) $(LOCAL_ADDITIONAL_DEPENDENCIES)
 	$(transform-java-to-classes.jar)
-
-# All of the rules after full_classes_compiled_jar are very unlikely
-# to fail except for bugs in their respective tools.  If you would
-# like to run these rules, add the "all" modifier goal to the make
-# command line.
-# This overwrites the value defined in base_rules.mk.  That's a little
-# dirty.  It's preferable to set LOCAL_CHECKED_MODULE, but this has to
-# be done after the inclusion of base_rules.mk.
-ALL_MODULES.$(LOCAL_MODULE).CHECKED := $(full_classes_compiled_jar)
 
 $(full_classes_compiled_jar): PRIVATE_JAVAC_DEBUG_FLAGS := -g
 
@@ -195,16 +356,10 @@ $(full_classes_jarjar_jar): $(full_classes_compiled_jar) | $(JARJAR)
 else
 $(full_classes_jarjar_jar): $(full_classes_compiled_jar) | $(ACP)
 	@echo Copying: $@
-	$(hide) $(ACP) $< $@
+	$(hide) $(ACP) -fp $< $@
 endif
 
-ifeq ($(LOCAL_IS_STATIC_JAVA_LIBRARY),true)
-# Skip adding emma instrumentation to class files if this is a static library,
-# since it will be instrumented by the package that includes it
-LOCAL_NO_EMMA_INSTRUMENT:= true
-endif
-
-ifneq ($(LOCAL_NO_EMMA_INSTRUMENT),true)
+ifeq ($(LOCAL_EMMA_INSTRUMENT),true)
 $(full_classes_emma_jar): PRIVATE_EMMA_COVERAGE_FILE := $(intermediates.COMMON)/coverage.em
 $(full_classes_emma_jar): PRIVATE_EMMA_INTERMEDIATES_DIR := $(emma_intermediates_dir)
 # module level coverage filter can be defined using LOCAL_EMMA_COVERAGE_FILTER
@@ -220,10 +375,7 @@ endif
 # $(full_classes_emma_jar)
 $(full_classes_emma_jar): $(full_classes_jarjar_jar) | $(EMMA_JAR)
 	$(transform-classes.jar-to-emma)
-$(PRIVATE_EMMA_COVERAGE_FILE): $(full_classes_emma_jar)
 
-# tell proguard to load emma jar
-LOCAL_PROGUARD_FLAGS := $(LOCAL_PROGUARD_FLAGS) $(addprefix -libraryjars ,$(EMMA_JAR))
 else
 $(full_classes_emma_jar): $(full_classes_jarjar_jar) | $(ACP)
 	@echo Copying: $@
@@ -233,37 +385,33 @@ endif
 # Keep a copy of the jar just before proguard processing.
 $(full_classes_jar): $(full_classes_emma_jar) | $(ACP)
 	@echo Copying: $@
-	$(hide) $(ACP) $< $@
+	$(hide) $(ACP) -fp $< $@
 
 # Run proguard if necessary, otherwise just copy the file.
 proguard_dictionary := $(intermediates.COMMON)/proguard_dictionary
 # Proguard doesn't like a class in both library and the jar to be processed.
 proguard_full_java_libs := $(filter-out $(full_static_java_libs),$(full_java_libs))
 proguard_flags := $(addprefix -libraryjars ,$(proguard_full_java_libs)) \
-                  -include $(BUILD_SYSTEM)/proguard.flags \
                   -forceprocessing \
                   -printmapping $(proguard_dictionary)
+ifneq ($(LOCAL_PROGUARD_ENABLED),nosystem)
+proguard_flags += -include $(BUILD_SYSTEM)/proguard.flags
+ifeq ($(LOCAL_EMMA_INSTRUMENT),true)
+proguard_flags += -include $(BUILD_SYSTEM)/proguard.emma.flags
+endif
 # If this is a test package, add proguard keep flags for tests.
 ifneq ($(strip $(LOCAL_INSTRUMENTATION_FOR)$(filter tests,$(LOCAL_MODULE_TAGS))$(filter android.test.runner,$(LOCAL_JAVA_LIBRARIES))),)
 proguard_flags := $(proguard_flags) -include $(BUILD_SYSTEM)/proguard_tests.flags
 endif # test package
+else  # LOCAL_PROGUARD_ENABLED is nosystem
+proguard_flags += -include $(BUILD_SYSTEM)/proguard_basic_keeps.flags
+endif # LOCAL_PROGUARD_ENABLED is not nosystem
 
 ifneq ($(LOCAL_PROGUARD_ENABLED),)
-ifeq ($(LOCAL_PROGUARD_ENABLED),full)
-    # full
-else
-ifeq ($(LOCAL_PROGUARD_ENABLED),optonly)
-    # optonly
-    proguard_flags += -dontobfuscate
-else
-ifeq ($(LOCAL_PROGUARD_ENABLED),custom)
-    # custom
-else
+ifeq ($(filter full custom nosystem, $(LOCAL_PROGUARD_ENABLED)),)
     $(warning while processing: $(LOCAL_MODULE))
     $(error invalid value for LOCAL_PROGUARD_ENABLED: $(LOCAL_PROGUARD_ENABLED))
-endif # custom
-endif # optonly
-endif # full
+endif # not a legal value
 endif # LOCAL_PROGUARD_ENABLED
 
 proguard_flag_files := $(addprefix $(LOCAL_PATH)/, $(LOCAL_PROGUARD_FLAG_FILES))
@@ -277,25 +425,24 @@ $(full_classes_proguard_jar) : $(full_classes_jar) $(proguard_flag_files) | $(AC
 
 ALL_MODULES.$(LOCAL_MODULE).PROGUARD_ENABLED:=$(LOCAL_PROGUARD_ENABLED)
 
+# Override PRIVATE_INTERMEDIATES_DIR so that install-dex-debug
+# will work even when intermediates != intermediates.COMMON.
+$(built_dex_intermediate): PRIVATE_INTERMEDIATES_DIR := $(intermediates.COMMON)
+$(built_dex_intermediate): PRIVATE_DX_FLAGS := $(LOCAL_DX_FLAGS)
 # If you instrument class files that have local variable debug information in
 # them emma does not correctly maintain the local variable table.
 # This will cause an error when you try to convert the class files for Android.
 # The workaround here is to build different dex file here based on emma switch
 # then later copy into classes.dex. When emma is on, dx is run with --no-locals
 # option to remove local variable information
-
-# Override PRIVATE_INTERMEDIATES_DIR so that install-dex-debug
-# will work even when intermediates != intermediates.COMMON.
-$(built_dex_intermediate): PRIVATE_INTERMEDIATES_DIR := $(intermediates.COMMON)
-$(built_dex_intermediate): PRIVATE_DX_FLAGS := $(LOCAL_DX_FLAGS)
-ifneq ($(LOCAL_NO_EMMA_COMPILE),true)
+ifeq ($(LOCAL_EMMA_INSTRUMENT),true)
 $(built_dex_intermediate): PRIVATE_DX_FLAGS += --no-locals
 endif
 $(built_dex_intermediate): $(full_classes_proguard_jar) $(DX)
 	$(transform-classes.jar-to-dex)
 $(built_dex): $(built_dex_intermediate) | $(ACP)
 	@echo Copying: $@
-	$(hide) $(ACP) $< $@
+	$(hide) $(ACP) -fp $< $@
 ifneq ($(GENERATE_DEX_DEBUG),)
 	$(install-dex-debug)
 endif

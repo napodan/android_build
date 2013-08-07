@@ -34,11 +34,11 @@ ifdef LOCAL_IS_HOST_MODULE
   ifneq ($(LOCAL_IS_HOST_MODULE),true)
     $(error $(LOCAL_PATH): LOCAL_IS_HOST_MODULE must be "true" or empty, not "$(LOCAL_IS_HOST_MODULE)")
   endif
-  my_prefix:=HOST_
-  my_host:=host-
+  my_prefix := HOST_
+  my_host := host-
 else
-  my_prefix:=TARGET_
-  my_host:=
+  my_prefix := TARGET_
+  my_host :=
 endif
 
 ###########################################################
@@ -470,9 +470,8 @@ $(installed_odex) : $(built_odex) | $(ACP)
 	@echo "Install: $@"
 	$(copy-file-to-target)
 
-$(LOCAL_INSTALLED_MODULE) : | $(installed_odex)
+$(LOCAL_INSTALLED_MODULE) : $(installed_odex)
 endif
-
 endif # !LOCAL_UNINSTALLABLE_MODULE
 
 
@@ -481,12 +480,17 @@ endif # !LOCAL_UNINSTALLABLE_MODULE
 ###########################################################
 
 # If nobody has defined a more specific module for the
-# checked modules, use LOCAL_BUILT_MODULE.  This was old
-# behavior, so it should be a safe default.
+# checked modules, use LOCAL_BUILT_MODULE.
 ifndef LOCAL_CHECKED_MODULE
-  ifndef LOCAL_SDK_VERSION
-    LOCAL_CHECKED_MODULE := $(LOCAL_BUILT_MODULE)
-  endif
+  LOCAL_CHECKED_MODULE := $(LOCAL_BUILT_MODULE)
+endif
+
+need_compile_java :=
+ifdef java_alternative_checked_module
+ifneq (,$(strip $(all_java_sources)$(full_static_java_libs))$(filter true,$(LOCAL_SOURCE_FILES_ALL_GENERATED)))
+  need_compile_java := true
+  LOCAL_CHECKED_MODULE := $(java_alternative_checked_module)
+endif
 endif
 
 # If they request that this module not be checked, then don't.
@@ -515,13 +519,19 @@ ALL_MODULES.$(LOCAL_MODULE).CHECKED := \
 ALL_MODULES.$(LOCAL_MODULE).BUILT := \
     $(ALL_MODULES.$(LOCAL_MODULE).BUILT) $(LOCAL_BUILT_MODULE)
 ALL_MODULES.$(LOCAL_MODULE).INSTALLED := \
-    $(ALL_MODULES.$(LOCAL_MODULE).INSTALLED) $(LOCAL_INSTALLED_MODULE)
+    $(strip $(ALL_MODULES.$(LOCAL_MODULE).INSTALLED) $(LOCAL_INSTALLED_MODULE))
 ALL_MODULES.$(LOCAL_MODULE).REQUIRED := \
     $(ALL_MODULES.$(LOCAL_MODULE).REQUIRED) $(LOCAL_REQUIRED_MODULES)
 ALL_MODULES.$(LOCAL_MODULE).EVENT_LOG_TAGS := \
     $(ALL_MODULES.$(LOCAL_MODULE).EVENT_LOG_TAGS) $(event_log_tags)
 ALL_MODULES.$(LOCAL_MODULE).INTERMEDIATE_SOURCE_DIR := \
     $(ALL_MODULES.$(LOCAL_MODULE).INTERMEDIATE_SOURCE_DIR) $(LOCAL_INTERMEDIATE_SOURCE_DIR)
+ALL_MODULES.$(LOCAL_MODULE).MAKEFILE := \
+    $(ALL_MODULES.$(LOCAL_MODULE).MAKEFILE) $(LOCAL_MODULE_MAKEFILE)
+ifdef LOCAL_MODULE_OWNER
+ALL_MODULES.$(LOCAL_MODULE).OWNER := \
+    $(sort $(ALL_MODULES.$(LOCAL_MODULE).OWNER) $(LOCAL_MODULE_OWNER))
+endif
 
 INSTALLABLE_FILES.$(LOCAL_INSTALLED_MODULE).MODULE := $(LOCAL_MODULE)
 
@@ -537,12 +547,36 @@ ALL_MODULE_TAGS := $(sort $(ALL_MODULE_TAGS) $(LOCAL_MODULE_TAGS))
 # it will default to recursive expansion.
 $(foreach tag,$(LOCAL_MODULE_TAGS),\
     $(eval ALL_MODULE_TAGS.$(tag) := \
-	    $(ALL_MODULE_TAGS.$(tag)) \
-	    $(LOCAL_INSTALLED_MODULE)))
+        $(ALL_MODULE_TAGS.$(tag)) \
+        $(LOCAL_INSTALLED_MODULE)))
 
 # Add this module name to the tag list of each specified tag.
 $(foreach tag,$(LOCAL_MODULE_TAGS),\
     $(eval ALL_MODULE_NAME_TAGS.$(tag) += $(LOCAL_MODULE)))
+
+###########################################################
+## umbrella targets used to verify builds
+###########################################################
+j_or_n :=
+ifneq (,$(filter EXECUTABLES SHARED_LIBRARIES STATIC_LIBRARIES,$(LOCAL_MODULE_CLASS)))
+j_or_n := native
+else
+ifneq (,$(filter JAVA_LIBRARIES APPS,$(LOCAL_MODULE_CLASS)))
+j_or_n := java
+endif
+endif
+ifdef LOCAL_IS_HOST_MODULE
+h_or_t := host
+else
+h_or_t := target
+endif
+
+ifdef j_or_n
+$(j_or_n) $(h_or_t) $(j_or_n)-$(h_or_t) : $(LOCAL_CHECKED_MODULE)
+ifneq (,$(filter $(LOCAL_MODULE_TAGS),tests))
+$(j_or_n)-$(h_or_t)-tests $(j_or_n)-tests $(h_or_t)-tests : $(LOCAL_CHECKED_MODULE)
+endif
+endif
 
 ###########################################################
 ## NOTICE files
