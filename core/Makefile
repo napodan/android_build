@@ -1022,7 +1022,7 @@ endif
 # -----------------------------------------------------------------
 # host tools needed to build OTA packages
 
-OTATOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
+DISTTOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
 	  $(HOST_OUT_EXECUTABLES)/mkbootfs \
 	  $(HOST_OUT_EXECUTABLES)/mkbootimg \
 	  $(HOST_OUT_EXECUTABLES)/unpackbootimg \
@@ -1213,31 +1213,15 @@ INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
 
 $(INTERNAL_OTA_PACKAGE_TARGET): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
 
-ifeq ($(TARGET_OTA_ASSERT_DEVICE),)
-$(INTERNAL_OTA_PACKAGE_TARGET): override_device := auto
-else
-$(INTERNAL_OTA_PACKAGE_TARGET): override_device := $(TARGET_OTA_ASSERT_DEVICE)
-endif
-
-ifeq ($(TARGET_RELEASETOOL_OTA_FROM_TARGET_SCRIPT),)
-    OTA_FROM_TARGET_SCRIPT := ./build/tools/releasetools/ota_from_target_files
-else
-    OTA_FROM_TARGET_SCRIPT := $(TARGET_RELEASETOOL_OTA_FROM_TARGET_SCRIPT)
-endif
-
-$(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(OTATOOLS)
+$(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	@echo "Package OTA: $@"
-	$(OTA_FROM_TARGET_SCRIPT) -v \
+	$(hide) ./build/tools/releasetools/ota_from_target_files -v \
 	   -p $(HOST_OUT) \
-           -k $(KEY_CERT_PAIR) \
-	   --override_device=$(override_device) \
-           $(BUILT_TARGET_FILES_PACKAGE) $@
+	   -k $(KEY_CERT_PAIR) \
+	   $(BUILT_TARGET_FILES_PACKAGE) $@
 
-.PHONY: otapackage oxygen
+.PHONY: otapackage
 otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
-oxygen: otapackage
-	$(hide) \
-           ./vendor/oxygen/tools/squisher
 
 # -----------------------------------------------------------------
 # The update package
@@ -1245,15 +1229,6 @@ oxygen: otapackage
 name := $(TARGET_PRODUCT)
 ifeq ($(TARGET_BUILD_TYPE),debug)
   name := $(name)_debug
-endif
-ifeq ($(TARGET_NO_RECOVERY),true)
-    TARGET_OTA_NO_RECOVERY := true
-endif
-ifeq ($(TARGET_OTA_NO_RECOVERY),)
-# default to "false"
-$(INTERNAL_OTA_PACKAGE_TARGET): recoveryex := false
-else
-$(INTERNAL_OTA_PACKAGE_TARGET): recoveryex := $(TARGET_OTA_NO_RECOVERY)
 endif
 name := $(name)-img-$(FILE_NAME_TAG)
 
@@ -1266,15 +1241,9 @@ else
 $(INTERNAL_UPDATE_PACKAGE_TARGET): extensions := $(TARGET_RELEASETOOLS_EXTENSIONS)
 endif
 
-ifeq ($(TARGET_RELEASETOOL_IMG_FROM_TARGET_SCRIPT),)
-    IMG_FROM_TARGET_SCRIPT := ./build/tools/releasetools/img_from_target_files
-else
-    IMG_FROM_TARGET_SCRIPT := $(TARGET_RELEASETOOL_IMG_FROM_TARGET_SCRIPT)
-endif
-
-$(INTERNAL_UPDATE_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(OTATOOLS)
+$(INTERNAL_UPDATE_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	@echo "Package: $@"
-	$(IMG_FROM_TARGET_SCRIPT) -v \
+	$(hide) ./build/tools/releasetools/img_from_target_files -v \
 	   -s $(extensions) \
 	   -p $(HOST_OUT) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
