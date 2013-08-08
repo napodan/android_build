@@ -2,9 +2,24 @@
 ## Track NOTICE files
 ###########################################################
 
-notice_file:=$(shell find $(LOCAL_PATH) -maxdepth 1 -name NOTICE)
+notice_file:=$(strip $(wildcard $(LOCAL_PATH)/NOTICE))
 
-ifneq ($(strip $(notice_file)),)
+ifeq ($(LOCAL_MODULE_CLASS),GYP)
+  # We ignore NOTICE files for modules of type GYP.
+  notice_file :=
+endif
+
+ifeq ($(LOCAL_MODULE_CLASS),NOTICE_FILES)
+# If this is a NOTICE-only module, we don't include base_rule.mk,
+# so my_prefix is not set at this point.
+ifeq ($(LOCAL_IS_HOST_MODULE),true)
+  my_prefix := HOST_
+else
+  my_prefix := TARGET_
+endif
+endif
+
+ifdef notice_file
 
 # This relies on the name of the directory in PRODUCT_OUT matching where
 # it's installed on the target - i.e. system, data, etc.  This does
@@ -49,7 +64,7 @@ $(installed_notice_file): PRIVATE_INSTALLED_MODULE := $(module_installed_filenam
 $(installed_notice_file): $(notice_file)
 	@echo Notice file: $< -- $@
 	$(hide) mkdir -p $(dir $@)
-	$(hide) cat $< >> $@
+	$(hide) cat $< > $@
 
 ifdef LOCAL_INSTALLED_MODULE
 # Make LOCAL_INSTALLED_MODULE depend on NOTICE files if they exist
