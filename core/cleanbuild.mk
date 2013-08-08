@@ -13,6 +13,9 @@
 # limitations under the License.
 #
 
+# Don't bother with the cleanspecs if you are running mm/mmm
+ifndef ONE_SHOT_MAKEFILE
+
 INTERNAL_CLEAN_STEPS :=
 
 # Builds up a list of clean steps.  Creates a unique
@@ -97,6 +100,7 @@ clean_steps_file :=
 INTERNAL_CLEAN_STEPS :=
 INTERNAL_CLEAN_BUILD_VERSION :=
 
+endif  # ifndef ONE_SHOT_MAKEFILE
 
 # Since products and build variants (unfortunately) share the same
 # PRODUCT_OUT staging directory, things can get out of sync if different
@@ -117,13 +121,13 @@ else
   building_sdk :=
 endif
 
-# A change in the list of locales warrants an installclean, too.
-locale_list := $(subst $(space),$(comma),$(strip $(PRODUCT_LOCALES)))
+# A change in the list of aapt configs warrants an installclean, too.
+aapt_config_list := $(strip $(PRODUCT_AAPT_CONFIG) $(PRODUCT_AAPT_PREF_CONFIG))
 
 current_build_config := \
-    $(TARGET_PRODUCT)-$(TARGET_BUILD_VARIANT)$(building_sdk)-{$(locale_list)}
+    $(TARGET_PRODUCT)-$(TARGET_BUILD_VARIANT)$(building_sdk)-{$(aapt_config_list)}
 building_sdk :=
-locale_list :=
+aapt_config_list :=
 force_installclean := false
 
 # Read the current state from the file, if present.
@@ -175,7 +179,6 @@ installclean_files := \
 	$(HOST_OUT)/obj/NOTICE_FILES \
 	$(HOST_OUT)/sdk \
 	$(PRODUCT_OUT)/*.img \
-	$(PRODUCT_OUT)/*.md5sum \
 	$(PRODUCT_OUT)/*.txt \
 	$(PRODUCT_OUT)/*.xlb \
 	$(PRODUCT_OUT)/*.zip \
@@ -187,7 +190,12 @@ installclean_files := \
 	$(PRODUCT_OUT)/root \
 	$(PRODUCT_OUT)/system \
 	$(PRODUCT_OUT)/dex_bootjars \
-	$(PRODUCT_OUT)/obj/JAVA_LIBRARIES
+	$(PRODUCT_OUT)/obj/JAVA_LIBRARIES \
+	$(PRODUCT_OUT)/obj/FAKE \
+	$(PRODUCT_OUT)/obj/EXECUTABLES/adbd_intermediates \
+	$(PRODUCT_OUT)/obj/EXECUTABLES/init_intermediates \
+	$(PRODUCT_OUT)/obj/ETC/mac_permissions.xml_intermediates \
+	$(PRODUCT_OUT)/obj/ETC/sepolicy_intermediates
 
 # The files/dirs to delete during a dataclean, which removes any files
 # in the staging and emulator data partitions.
