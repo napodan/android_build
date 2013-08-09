@@ -17,65 +17,57 @@
 # api compatibility or added apis illegally.
 #
 
-ifneq ($(BUILD_TINY_ANDROID), true)
+# skip api check for PDK buid
+ifeq (,$(filter true, $(WITHOUT_CHECK_API) $(TARGET_BUILD_PDK)))
 
 .PHONY: checkapi
-
-# eval this to define a rule that runs apicheck.
-#
-# Args:
-#    $(1)  target
-#    $(2)  stable api xml file
-#    $(3)  api xml file to be tested
-#    $(4)  arguments for apicheck
-#    $(5)  command to run if apicheck failed
-define check-api
-$(TARGET_OUT_COMMON_INTERMEDIATES)/PACKAGING/$(strip $(1))-timestamp: $(2) $(3) $(APICHECK)
-	@echo "Checking API:" $(1)
-	$(hide) ( $(APICHECK) $(4) $(2) $(3) || ( $(5) ; exit 38 ) )
-	$(hide) mkdir -p $$(dir $$@)
-	$(hide) touch $$@
-checkapi: $(TARGET_OUT_COMMON_INTERMEDIATES)/PACKAGING/$(strip $(1))-timestamp
-endef
 
 # Run the checkapi rules by default.
 droidcore: checkapi
 
-last_released_sdk_version := $(lastword $(call numerically_sort,\
-    $(patsubst $(SRC_API_DIR)/%.xml,%, \
-    $(filter-out $(SRC_API_DIR)/current.xml, \
-    $(wildcard $(SRC_API_DIR)/*.xml)))))
+last_released_sdk_version := $(lastword $(call numerically_sort, \
+            $(filter-out current, \
+                $(patsubst $(SRC_API_DIR)/%.txt,%, $(wildcard $(SRC_API_DIR)/*.txt)) \
+             )\
+        ))
 
 # INTERNAL_PLATFORM_API_FILE is the one build by droiddoc.
+# Note that since INTERNAL_PLATFORM_API_FILE is the byproduct of api-stubs module,
+# (See frameworks/base/Android.mk)
+# we need to add api-stubs as additional dependency of the api check.
 
 # Check that the API we're building hasn't broken the last-released
 # SDK version.
 $(eval $(call check-api, \
-	checkapi-last, \
-	$(SRC_API_DIR)/$(last_released_sdk_version).xml, \
-	$(INTERNAL_PLATFORM_API_FILE), \
-	-hide 2 -hide 3 -hide 4 -hide 5 -hide 6 -hide 24 -hide 25 \
-	-error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 -error 15 \
-	-error 16 -error 17 -error 18 , \
-	cat $(BUILD_SYSTEM)/apicheck_msg_last.txt \
-	))
+    checkapi-last, \
+    $(SRC_API_DIR)/$(last_released_sdk_version).txt, \
+    $(INTERNAL_PLATFORM_API_FILE), \
+    -hide 2 -hide 3 -hide 4 -hide 5 -hide 6 -hide 24 -hide 25 -hide 26 -hide 27 \
+    -error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 -error 15 \
+    -error 16 -error 17 -error 18 , \
+    cat $(BUILD_SYSTEM)/apicheck_msg_last.txt, \
+    checkapi, \
+    $(call doc-timestamp-for,api-stubs) \
+    ))
 
 # Check that the API we're building hasn't changed from the not-yet-released
 # SDK version.
 $(eval $(call check-api, \
-	checkapi-current, \
-	$(SRC_API_DIR)/current.xml, \
-	$(INTERNAL_PLATFORM_API_FILE), \
-	-error 2 -error 3 -error 4 -error 5 -error 6 \
-	-error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 -error 15 \
-	-error 16 -error 17 -error 18 -error 19 -error 20 -error 21 -error 23 -error 24 \
-	-error 25 , \
-	cat $(BUILD_SYSTEM)/apicheck_msg_current.txt \
-	))
+    checkapi-current, \
+    frameworks/base/api/current.txt, \
+    $(INTERNAL_PLATFORM_API_FILE), \
+    -error 2 -error 3 -error 4 -error 5 -error 6 \
+    -error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 -error 15 \
+    -error 16 -error 17 -error 18 -error 19 -error 20 -error 21 -error 23 -error 24 \
+    -error 25 -error 26 -error 27, \
+    cat $(BUILD_SYSTEM)/apicheck_msg_current.txt, \
+    checkapi, \
+    $(call doc-timestamp-for,api-stubs) \
+    ))
 
 .PHONY: update-api
 update-api: $(INTERNAL_PLATFORM_API_FILE) | $(ACP)
-	@echo Copying current.xml
-	$(hide) $(ACP) $(INTERNAL_PLATFORM_API_FILE) $(SRC_API_DIR)/current.xml
+	@echo Copying current.txt
+	$(hide) $(ACP) $(INTERNAL_PLATFORM_API_FILE) frameworks/base/api/current.txt
 
 endif
