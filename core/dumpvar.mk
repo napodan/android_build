@@ -3,16 +3,40 @@
 # what to add to the path given the config we have chosen.
 ifeq ($(CALLED_FROM_SETUP),true)
 
-ABP:=$(PWD)/$(HOST_OUT_EXECUTABLES)
-
-ifeq ($(TARGET_SIMULATOR),true)
-	ABP:=$(ABP):$(TARGET_OUT_EXECUTABLES)
+ifneq ($(filter /%,$(HOST_OUT_EXECUTABLES)),)
+ABP:=$(HOST_OUT_EXECUTABLES)
 else
-	# this should be copied to HOST_OUT_EXECUTABLES instead
-	ABP:=$(ABP):$(PWD)/prebuilt/$(HOST_PREBUILT_TAG)/toolchain/arm-linux-androideabi-4.4.x/bin
+ABP:=$(PWD)/$(HOST_OUT_EXECUTABLES)
 endif
+
+# Add the ARM toolchain bin dir if it actually exists
+ifeq ($(TARGET_ARCH),arm)
+    ifneq ($(wildcard $(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/arm/arm-linux-androideabi-$(TARGET_GCC_VERSION)/bin),)
+        # this should be copied to HOST_OUT_EXECUTABLES instead
+        ABP:=$(ABP):$(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/arm/arm-linux-androideabi-$(TARGET_GCC_VERSION)/bin
+    endif
+    ifneq ($(wildcard $(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/arm/arm-eabi-$(TARGET_GCC_VERSION)/bin),)
+        # this should be copied to HOST_OUT_EXECUTABLES instead
+        ABP:=$(ABP):$(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/arm/arm-eabi-$(TARGET_GCC_VERSION)/bin
+    endif
+else ifeq ($(TARGET_ARCH),x86)
+
+# Add the x86 toolchain bin dir if it actually exists
+    ifneq ($(wildcard $(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/x86/i686-linux-android-$(TARGET_GCC_VERSION)/bin),)
+        # this should be copied to HOST_OUT_EXECUTABLES instead
+        ABP:=$(ABP):$(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/x86/i686-linux-android-$(TARGET_GCC_VERSION)/bin
+    endif
+endif
+
+# Add the mips toolchain bin dir if it actually exists
+ifneq ($(wildcard $(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/mips/mipsel-linux-android-$(TARGET_GCC_VERSION)/bin),)
+    # this should be copied to HOST_OUT_EXECUTABLES instead
+    ABP:=$(ABP):$(PWD)/prebuilts/gcc/$(HOST_PREBUILT_TAG)/mips/mipsel-linux-android-$(TARGET_GCC_VERSION)/bin
+endif
+
 ANDROID_BUILD_PATHS := $(ABP)
 ANDROID_PREBUILTS := prebuilt/$(HOST_PREBUILT_TAG)
+ANDROID_GCC_PREBUILTS := prebuilts/gcc/$(HOST_PREBUILT_TAG)
 
 # The "dumpvar" stuff lets you say something like
 #
@@ -39,7 +63,11 @@ ifdef dumpvar_goals
   absolute_dumpvar := $(strip $(filter abs-%,$(dumpvar_goals)))
   ifdef absolute_dumpvar
     dumpvar_goals := $(patsubst abs-%,%,$(dumpvar_goals))
-    DUMPVAR_VALUE := $(PWD)/$($(dumpvar_goals))
+    ifneq ($(filter /%,$($(dumpvar_goals))),)
+      DUMPVAR_VALUE := $($(dumpvar_goals))
+    else
+      DUMPVAR_VALUE := $(PWD)/$($(dumpvar_goals))
+    endif
     dumpvar_target := dumpvar-abs-$(dumpvar_goals)
   else
     DUMPVAR_VALUE := $($(dumpvar_goals))
@@ -60,19 +88,22 @@ endif # CALLED_FROM_SETUP
 
 
 ifneq ($(PRINT_BUILD_CONFIG),)
+HOST_OS_EXTRA:=$(shell python -c "import platform; print(platform.platform())")
 $(info ============================================)
 $(info   PLATFORM_VERSION_CODENAME=$(PLATFORM_VERSION_CODENAME))
 $(info   PLATFORM_VERSION=$(PLATFORM_VERSION))
 $(info   TARGET_PRODUCT=$(TARGET_PRODUCT))
 $(info   TARGET_BUILD_VARIANT=$(TARGET_BUILD_VARIANT))
-$(info   TARGET_SIMULATOR=$(TARGET_SIMULATOR))
 $(info   TARGET_BUILD_TYPE=$(TARGET_BUILD_TYPE))
 $(info   TARGET_BUILD_APPS=$(TARGET_BUILD_APPS))
 $(info   TARGET_ARCH=$(TARGET_ARCH))
 $(info   TARGET_ARCH_VARIANT=$(TARGET_ARCH_VARIANT))
+$(info   TARGET_CPU_VARIANT=$(TARGET_CPU_VARIANT))
 $(info   HOST_ARCH=$(HOST_ARCH))
 $(info   HOST_OS=$(HOST_OS))
+$(info   HOST_OS_EXTRA=$(HOST_OS_EXTRA))
 $(info   HOST_BUILD_TYPE=$(HOST_BUILD_TYPE))
 $(info   BUILD_ID=$(BUILD_ID))
+$(info   OUT_DIR=$(OUT_DIR))
 $(info ============================================)
 endif

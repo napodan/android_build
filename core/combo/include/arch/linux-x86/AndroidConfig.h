@@ -83,7 +83,7 @@
 /*
  * Define this if you have <termio.h>
  */
-#define  HAVE_TERMIO_H
+#define  HAVE_TERMIO_H 1
 
 /*
  * Define this if you have <sys/sendfile.h>
@@ -98,7 +98,7 @@
 /*
  * Define this if you have sys/uio.h
  */
-#define  HAVE_SYS_UIO_H
+#define  HAVE_SYS_UIO_H 1
 
 /*
  * Define this if your platforms implements symbolic links
@@ -109,7 +109,7 @@
 /*
  * Define this if we have localtime_r().
  */
-#define HAVE_LOCALTIME_R
+#define HAVE_LOCALTIME_R 1
 
 /*
  * Define this if we have gethostbyname_r().
@@ -164,18 +164,16 @@
 #define _LARGEFILE_SOURCE 1
 
 /*
+ * Define if platform has off64_t (and lseek64 and other xxx64 functions)
+ */
+#define HAVE_OFF64_T
+
+/*
  * Defined if we have the backtrace() call for retrieving a stack trace.
  * Needed for CallStack to operate; if not defined, CallStack is
  * non-functional.
  */
 #define HAVE_BACKTRACE 1
-
-/*
- * Defined if we have the dladdr() call for retrieving the symbol associated
- * with a memory address.  If not defined, stack crawls will not have symbolic
- * information.
- */
-#define HAVE_DLADDR 1
 
 /*
  * Defined if we have the cxxabi.h header for demangling C++ symbols.  If
@@ -327,5 +325,19 @@
  * Define if printf() supports %zd for size_t arguments
  */
 #define HAVE_PRINTF_ZD 1
+
+/*
+ * Define to 1 if <stdlib.h> provides qsort_r() with a BSD style function prototype.
+ */
+#define HAVE_BSD_QSORT_R 0
+
+/*
+ * Define to 1 if <stdlib.h> provides qsort_r() with a GNU style function prototype.
+ */
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 8)
+#define HAVE_GNU_QSORT_R 1
+#else
+#define HAVE_GNU_QSORT_R 0
+#endif
 
 #endif /*_ANDROID_CONFIG_H*/
