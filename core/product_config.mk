@@ -82,7 +82,7 @@ endef
 # These are the valid values of TARGET_BUILD_VARIANT.  Also, if anything else is passed
 # as the variant in the PRODUCT-$TARGET_BUILD_PRODUCT-$TARGET_BUILD_VARIANT form,
 # it will be treated as a goal, and the eng variant will be used.
-INTERNAL_VALID_VARIANTS := user userdebug eng tests
+INTERNAL_VALID_VARIANTS := user userdebug eng
 
 # ---------------------------------------------------------------
 # Provide "PRODUCT-<prodname>-<goal>" targets, which lets you build
@@ -109,28 +109,18 @@ ifdef product_goals
   # The variant they want
   TARGET_BUILD_VARIANT := $(word 2,$(product_goals))
 
+  ifeq ($(TARGET_BUILD_VARIANT),tests)
+    $(error "tests" has been deprecated as a build variant. Use it as a build goal instead.)
+  endif
+
   # The build server wants to do make PRODUCT-dream-installclean
   # which really means TARGET_PRODUCT=dream make installclean.
   ifneq ($(filter-out $(INTERNAL_VALID_VARIANTS),$(TARGET_BUILD_VARIANT)),)
-	MAKECMDGOALS := $(MAKECMDGOALS) $(TARGET_BUILD_VARIANT)
-	TARGET_BUILD_VARIANT := eng
+    MAKECMDGOALS := $(MAKECMDGOALS) $(TARGET_BUILD_VARIANT)
+    TARGET_BUILD_VARIANT := eng
     default_goal_substitution :=
   else
     default_goal_substitution := $(DEFAULT_GOAL)
-  endif
-
-  # For tests build, only build tests-build-target
-  ifeq (tests,$(TARGET_BUILD_VARIANT))
-    default_goal_substitution := tests-build-target
-  endif
-
-  # Hack to make the linux build servers use dexpreopt (emulator-based
-  # preoptimization). Most engineers don't use this type of target
-  # ("make PRODUCT-blah-user"), so this should only tend to happen when
-  # using buildbot.
-  # TODO: Remove this once host Dalvik preoptimization is working.
-  ifeq ($(TARGET_BUILD_VARIANT),user)
-    WITH_DEXPREOPT_buildbot := true
   endif
 
   # Replace the PRODUCT-* goal with the build goal that it refers to.
@@ -172,6 +162,7 @@ ifdef unbundled_goals
 $(unbundled_goals): $(MAKECMDGOALS)
 endif # unbundled_goals
 
+
 # ---------------------------------------------------------------
 # Include the product definitions.
 # We need to do this to translate TARGET_PRODUCT into its
@@ -182,26 +173,71 @@ include $(BUILD_SYSTEM)/product.mk
 include $(BUILD_SYSTEM)/device.mk
 
 ifneq ($(strip $(TARGET_BUILD_APPS)),)
-  # An unbundled app build needs only the core product makefiles.
-  $(call import-products,$(call get-product-makefiles,\
-      $(SRC_TARGET_DIR)/product/AndroidProducts.mk))
+# An unbundled app build needs only the core product makefiles.
+all_product_configs := $(call get-product-makefiles,\
+    $(SRC_TARGET_DIR)/product/AndroidProducts.mk)
 else
-  # Read in all of the product definitions specified by the AndroidProducts.mk
-  # files in the tree.
-  #
-  #TODO: when we start allowing direct pointers to product files,
-  #    guarantee that they're in this list.
-  $(call import-products, $(get-all-product-makefiles))
-endif # TARGET_BUILD_APPS
+# Read in all of the product definitions specified by the AndroidProducts.mk
+# files in the tree.
+all_product_configs := $(get-all-product-makefiles)
+endif
+
+# Find the product config makefile for the current product.
+# all_product_configs consists items like:
+# <product_name>:<path_to_the_product_makefile>
+# or just <path_to_the_product_makefile> in case the product name is the
+# same as the base filename of the product config makefile.
+current_product_makefile :=
+all_product_makefiles :=
+$(foreach f, $(all_product_configs),\
+    $(eval _cpm_words := $(subst :,$(space),$(f)))\
+    $(eval _cpm_word1 := $(word 1,$(_cpm_words)))\
+    $(eval _cpm_word2 := $(word 2,$(_cpm_words)))\
+    $(if $(_cpm_word2),\
+        $(eval all_product_makefiles += $(_cpm_word2))\
+        $(if $(filter $(TARGET_PRODUCT),$(_cpm_word1)),\
+            $(eval current_product_makefile += $(_cpm_word2)),),\
+        $(eval all_product_makefiles += $(f))\
+        $(if $(filter $(TARGET_PRODUCT),$(basename $(notdir $(f)))),\
+            $(eval current_product_makefile += $(f)),)))
+_cpm_words :=
+_cpm_word1 :=
+_cpm_word2 :=
+current_product_makefile := $(strip $(current_product_makefile))
+all_product_makefiles := $(strip $(all_product_makefiles))
+
+ifneq (,$(filter product-graph dump-products, $(MAKECMDGOALS)))
+# Import all product makefiles.
+$(call import-products, $(all_product_makefiles))
+else
+# Import just the current product.
+ifndef current_product_makefile
+$(error Can not locate config makefile for product "$(TARGET_PRODUCT)")
+endif
+ifneq (1,$(words $(current_product_makefile)))
+$(error Product "$(TARGET_PRODUCT)" ambiguous: matches $(current_product_makefile))
+endif
+$(call import-products, $(current_product_makefile))
+endif  # Import all or just the current product makefile
+
+# Sanity check
 $(check-all-products)
-#$(dump-products)
-#$(error done)
+
+ifneq ($(filter dump-products, $(MAKECMDGOALS)),)
+$(dump-products)
+$(error done)
+endif
 
 # Convert a short name like "sooner" into the path to the product
 # file defining that product.
 #
 INTERNAL_PRODUCT := $(call resolve-short-product-name, $(TARGET_PRODUCT))
-#$(error TARGET_PRODUCT $(TARGET_PRODUCT) --> $(INTERNAL_PRODUCT))
+ifneq ($(current_product_makefile),$(INTERNAL_PRODUCT))
+$(error PRODUCT_NAME inconsistent in $(current_product_makefile) and $(INTERNAL_PRODUCT))
+endif
+current_product_makefile :=
+all_product_makefiles :=
+all_product_configs :=
 
 # Find the device that this product maps to.
 TARGET_DEVICE := $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_DEVICE)
@@ -223,22 +259,27 @@ ifneq (,$(extra_locales))
   extra_locales :=
 endif
 
+# Add PRODUCT_LOCALES to PRODUCT_AAPT_CONFIG
+PRODUCT_AAPT_CONFIG := $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_AAPT_CONFIG))
+PRODUCT_AAPT_CONFIG := $(PRODUCT_LOCALES) $(PRODUCT_AAPT_CONFIG)
+PRODUCT_AAPT_PREF_CONFIG := $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_AAPT_PREF_CONFIG))
+
 # Default to medium-density assets.
-# (Can be overridden in the device config, e.g.: PRODUCT_LOCALES += hdpi)
-PRODUCT_LOCALES := $(strip \
-	$(PRODUCT_LOCALES) \
-	$(if $(filter %dpi,$(PRODUCT_LOCALES)),,mdpi))
+# (Can be overridden in the device config, e.g.: PRODUCT_AAPT_CONFIG += hdpi)
+PRODUCT_AAPT_CONFIG := $(strip \
+    $(PRODUCT_AAPT_CONFIG) \
+    $(if $(filter %dpi,$(PRODUCT_AAPT_CONFIG)),,mdpi))
+PRODUCT_AAPT_PREF_CONFIG := $(strip $(PRODUCT_AAPT_PREF_CONFIG))
 
 # Everyone gets nodpi assets which are density-independent.
-PRODUCT_LOCALES += nodpi
-
-# Assemble the list of options.
-PRODUCT_AAPT_CONFIG := $(PRODUCT_LOCALES)
+PRODUCT_AAPT_CONFIG += nodpi
 
 # Convert spaces to commas.
 comma := ,
 PRODUCT_AAPT_CONFIG := \
-	$(subst $(space),$(comma),$(strip $(PRODUCT_AAPT_CONFIG)))
+    $(subst $(space),$(comma),$(strip $(PRODUCT_AAPT_CONFIG)))
+PRODUCT_AAPT_PREF_CONFIG := \
+    $(subst $(space),$(comma),$(strip $(PRODUCT_AAPT_PREF_CONFIG)))
 
 PRODUCT_BRAND := $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_BRAND))
 
@@ -248,7 +289,7 @@ ifndef PRODUCT_MODEL
 endif
 
 PRODUCT_MANUFACTURER := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_MANUFACTURER))
+    $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_MANUFACTURER))
 ifndef PRODUCT_MANUFACTURER
   PRODUCT_MANUFACTURER := unknown
 endif
@@ -259,45 +300,55 @@ else
   TARGET_AAPT_CHARACTERISTICS := $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_CHARACTERISTICS))
 endif
 
-PRODUCT_SPECIFIC_DEFINES := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SPECIFIC_DEFINES))
-
 PRODUCT_DEFAULT_WIFI_CHANNELS := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_DEFAULT_WIFI_CHANNELS))
+    $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_DEFAULT_WIFI_CHANNELS))
 
-# A list of words like <source path>:<destination path>.  The file at
-# the source path should be copied to the destination path when building
-# this product.  <destination path> is relative to $(PRODUCT_OUT), so
-# it should look like, e.g., "system/etc/file.xml".  The rules
-# for these copy steps are defined in config/Makefile.
+PRODUCT_DEFAULT_DEV_CERTIFICATE := \
+    $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_DEFAULT_DEV_CERTIFICATE))
+ifdef PRODUCT_DEFAULT_DEV_CERTIFICATE
+ifneq (1,$(words $(PRODUCT_DEFAULT_DEV_CERTIFICATE)))
+    $(error PRODUCT_DEFAULT_DEV_CERTIFICATE='$(PRODUCT_DEFAULT_DEV_CERTIFICATE)', \
+      only 1 certificate is allowed.)
+endif
+endif
+
+# A list of words like <source path>:<destination path>[:<owner>].
+# The file at the source path should be copied to the destination path
+# when building  this product.  <destination path> is relative to
+# $(PRODUCT_OUT), so it should look like, e.g., "system/etc/file.xml".
+# The rules for these copy steps are defined in build/core/Makefile.
+# The optional :<owner> is used to indicate the owner of a vendor file.
 PRODUCT_COPY_FILES := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_COPY_FILES))
-
-# The HTML file containing the contributors to the project.
-PRODUCT_CONTRIBUTORS_FILE := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_CONTRIBUTORS_FILE))
+    $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_COPY_FILES))
 
 # A list of property assignments, like "key = value", with zero or more
 # whitespace characters on either side of the '='.
 PRODUCT_PROPERTY_OVERRIDES := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PROPERTY_OVERRIDES))
+    $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PROPERTY_OVERRIDES))
 
-PRODUCT_BUILD_PROP_OVERRIDES := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_BUILD_PROP_OVERRIDES))
+# A list of property assignments, like "key = value", with zero or more
+# whitespace characters on either side of the '='.
+# used for adding properties to default.prop
+PRODUCT_DEFAULT_PROPERTY_OVERRIDES := \
+    $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_DEFAULT_PROPERTY_OVERRIDES))
 
 # Should we use the default resources or add any product specific overlays
 PRODUCT_PACKAGE_OVERLAYS := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PACKAGE_OVERLAYS))
+    $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PACKAGE_OVERLAYS))
 DEVICE_PACKAGE_OVERLAYS := \
         $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).DEVICE_PACKAGE_OVERLAYS))
 
 # An list of whitespace-separated words.
 PRODUCT_TAGS := $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_TAGS))
 
+# The list of product-specific kernel header dirs
+PRODUCT_VENDOR_KERNEL_HEADERS := \
+    $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_KERNEL_HEADERS)
+
 # Add the product-defined properties to the build properties.
 ADDITIONAL_BUILD_PROPERTIES := \
-	$(ADDITIONAL_BUILD_PROPERTIES) \
-	$(PRODUCT_PROPERTY_OVERRIDES)
+    $(ADDITIONAL_BUILD_PROPERTIES) \
+    $(PRODUCT_PROPERTY_OVERRIDES)
 
 # The OTA key(s) specified by the product config, if any.  The names
 # of these keys are stored in the target-files zip so that post-build
@@ -306,12 +357,5 @@ ADDITIONAL_BUILD_PROPERTIES := \
 PRODUCT_OTA_PUBLIC_KEYS := $(sort \
     $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_OTA_PUBLIC_KEYS))
 
-# ---------------------------------------------------------------
-# Simulator overrides
-ifeq ($(TARGET_PRODUCT),sim)
-  # Tell the build system to turn on some special cases
-  # to deal with the simulator product.
-  TARGET_SIMULATOR := true
-  # dexpreopt doesn't work when building the simulator
-  DISABLE_DEXPREOPT := true
-endif
+PRODUCT_EXTRA_RECOVERY_KEYS := $(sort \
+    $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_EXTRA_RECOVERY_KEYS))
