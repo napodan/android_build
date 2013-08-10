@@ -23,7 +23,6 @@ PRODUCT_PACKAGES := \
     AccountAndSyncSettings \
     CarHome \
     DeskClock \
-    AlarmProvider \
     Bluetooth \
     Calculator \
     Calendar \
@@ -38,11 +37,8 @@ PRODUCT_PACKAGES := \
     Music \
     Phone \
     Settings \
-    Sync \
     SystemUI \
-    Updater \
     CalendarProvider \
-    SyncProvider
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core.mk)
 

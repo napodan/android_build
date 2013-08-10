@@ -43,12 +43,10 @@ PRODUCT_PACKAGES := \
     jasmin \
     jasmin.jar \
     libcrypto \
-    libdex \
     libdvm \
     libexpat \
     libicui18n \
     libicuuc \
-    libjavacore \
     libnativehelper \
     libnfc_ndef \
     libsqlite_jni \
@@ -72,7 +70,6 @@ PRODUCT_PACKAGES := \
     UserDictionaryProvider \
     PackageInstaller \
     DefaultContainerService \
-    Bugreport \
     zoneinfo.dat \
     zoneinfo.idx \
     zoneinfo.version
@@ -80,6 +77,7 @@ PRODUCT_PACKAGES := \
 
 # host-only dependencies
 ifeq ($(WITH_HOST_DALVIK),true)
+$(warning "WITH_HOST_DALVIK true")
     PRODUCT_PACKAGES += \
         apache-xml-hostdex \
         bouncycastle-hostdex \
