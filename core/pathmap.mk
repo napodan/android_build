@@ -31,9 +31,11 @@ pathmap_INCL := \
     bluez:external/bluetooth/bluez \
     glib:external/bluetooth/glib \
     bootloader:bootable/bootloader/legacy/include \
+    camera:system/media/camera/include \
     corecg:external/skia/include/core \
     dbus:external/dbus \
     frameworks-base:frameworks/base/include \
+    frameworks-native:frameworks/native/include \
     graphics:external/skia/include/core \
     libc:bionic/libc/include \
     libdrm1:frameworks/base/media/libdrm/mobile1/include \
@@ -47,8 +49,15 @@ pathmap_INCL := \
     libstdc++:bionic/libstdc++/include \
     libthread_db:bionic/libthread_db/include \
     mkbootimg:system/core/mkbootimg \
+    opengl-tests-includes:frameworks/native/opengl/tests/include \
     recovery:bootable/recovery \
-    system-core:system/core/include
+    system-core:system/core/include \
+    audio-effects:system/media/audio_effects/include \
+    audio-utils:system/media/audio_utils/include \
+    audio-route:system/media/audio_route/include \
+    wilhelm:frameworks/wilhelm/include \
+    wilhelm-ut:frameworks/wilhelm/src/ut \
+    speex:external/speex/include
 
 #
 # Returns the path to the requested module's include directory,
@@ -82,6 +91,9 @@ FRAMEWORKS_BASE_SUBDIRS := \
 	    graphics \
 	    location \
 	    media \
+	    media/mca/effect \
+	    media/mca/filterfw \
+	    media/mca/filterpacks \
 	    drm \
 	    opengl \
 	    sax \
@@ -101,3 +113,28 @@ FRAMEWORKS_BASE_SUBDIRS := \
 #
 FRAMEWORKS_BASE_JAVA_SRC_DIRS := \
 	$(addprefix frameworks/base/,$(FRAMEWORKS_BASE_SUBDIRS))
+
+#
+# A list of all source roots under frameworks/support.
+#
+FRAMEWORKS_SUPPORT_SUBDIRS := \
+        v4 \
+        v7/gridlayout \
+        v7/appcompat \
+        v7/mediarouter \
+        v8/renderscript \
+        v13
+
+#
+# A version of FRAMEWORKS_SUPPORT_SUBDIRS that is expanded to full paths from
+# the root of the tree.
+#
+FRAMEWORKS_SUPPORT_JAVA_SRC_DIRS := \
+	$(addprefix frameworks/support/,$(FRAMEWORKS_SUPPORT_SUBDIRS))
+
+#
+# A list of support library modules.
+#
+FRAMEWORKS_SUPPORT_JAVA_LIBRARIES := \
+    $(foreach dir,$(FRAMEWORKS_SUPPORT_SUBDIRS),android-support-$(subst /,-,$(dir)))
+
