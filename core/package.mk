@@ -130,9 +130,11 @@ LOCAL_BUILT_MODULE_STEM := package.apk
 
 LOCAL_PROGUARD_ENABLED:=$(strip $(LOCAL_PROGUARD_ENABLED))
 ifndef LOCAL_PROGUARD_ENABLED
+ifneq ($(DISABLE_PROGUARD),true)
 ifneq ($(filter user userdebug, $(TARGET_BUILD_VARIANT)),)
     # turn on Proguard by default for user & userdebug build
     LOCAL_PROGUARD_ENABLED :=full
+endif
 endif
 endif
 ifeq ($(LOCAL_PROGUARD_ENABLED),disabled)
@@ -147,8 +149,11 @@ endif # all_resources
 endif # !custom
 LOCAL_PROGUARD_FLAGS := $(addprefix -include ,$(proguard_options_file)) $(LOCAL_PROGUARD_FLAGS)
 
-ifeq (true,$(WITH_DEXPREOPT))
+ifneq (true,$(WITH_DEXPREOPT))
+LOCAL_DEX_PREOPT :=
+else
 ifeq (,$(TARGET_BUILD_APPS))
+ifeq (,$(LOCAL_APK_LIBRARIES))
 ifneq (,$(LOCAL_SRC_FILES))
 ifndef LOCAL_DEX_PREOPT
 LOCAL_DEX_PREOPT := true
@@ -156,18 +161,52 @@ endif
 endif
 endif
 endif
+endif
+ifeq (false,$(LOCAL_DEX_PREOPT))
+LOCAL_DEX_PREOPT :=
+endif
 
-# The dex files go in the package, so we don't
-# want to install them separately for this module.
-old_DONT_INSTALL_DEX_FILES := $(DONT_INSTALL_DEX_FILES)
-DONT_INSTALL_DEX_FILES := true
+ifeq (true,$(EMMA_INSTRUMENT))
+ifndef LOCAL_EMMA_INSTRUMENT
+# No emma for test apks.
+ifeq (,$(filer tests,$(LOCAL_MODULE_TAGS))$(LOCAL_INSTRUMENTATION_FOR))
+LOCAL_EMMA_INSTRUMENT := true
+endif # No test apk
+endif # LOCAL_EMMA_INSTRUMENT is not set
+else
+LOCAL_EMMA_INSTRUMENT := false
+endif # EMMA_INSTRUMENT is true
+
+ifeq (true,$(LOCAL_EMMA_INSTRUMENT))
+ifeq (true,$(EMMA_INSTRUMENT_STATIC))
+LOCAL_STATIC_JAVA_LIBRARIES += emma
+else
+ifdef LOCAL_SDK_VERSION
+ifdef TARGET_BUILD_APPS
+# In unbundled build merge the emma library into the apk.
+LOCAL_STATIC_JAVA_LIBRARIES += emma
+else
+# If build against the SDK in full build, core.jar is not used,
+# we have to use prebiult emma.jar to make Proguard happy;
+# Otherwise emma classes are included in core.jar.
+LOCAL_PROGUARD_FLAGS += -libraryjars $(EMMA_JAR)
+endif # full build
+endif # LOCAL_SDK_VERSION
+endif # EMMA_INSTRUMENT_STATIC
+endif # LOCAL_EMMA_INSTRUMENT
+
+rs_compatibility_jni_libs :=
+
 #################################
 include $(BUILD_SYSTEM)/java.mk
 #################################
-DONT_INSTALL_DEX_FILES := $(old_DONT_INSTALL_DEX_FILES)
-old_DONT_INSTALL_DEX_FILES =
 
-full_android_manifest := $(LOCAL_PATH)/$(LOCAL_MANIFEST_FILE)
+LOCAL_SDK_RES_VERSION:=$(strip $(LOCAL_SDK_RES_VERSION))
+ifeq ($(LOCAL_SDK_RES_VERSION),)
+  LOCAL_SDK_RES_VERSION:=$(LOCAL_SDK_VERSION)
+endif
+
+full_android_manifest := $(LOCAL_FULL_MANIFEST_FILE)
 $(LOCAL_INTERMEDIATE_TARGETS): \
     PRIVATE_ANDROID_MANIFEST := $(full_android_manifest)
 ifneq (,$(filter-out current, $(LOCAL_SDK_VERSION)))
@@ -197,21 +236,19 @@ endif
 $(R_file_stamp): PRIVATE_RESOURCE_PUBLICS_OUTPUT := \
 			$(intermediates.COMMON)/public_resources.xml
 $(R_file_stamp): PRIVATE_PROGUARD_OPTIONS_FILE := $(proguard_options_file)
-$(R_file_stamp): $(all_res_assets) $(full_android_manifest) $(AAPT) | $(ACP)
+$(R_file_stamp): $(all_res_assets) $(full_android_manifest) $(RenderScript_file_stamp) $(AAPT) | $(ACP)
 	@echo "target R.java/Manifest.java: $(PRIVATE_MODULE) ($@)"
 	@rm -f $@
 	$(create-resource-java-files)
 	$(hide) for GENERATED_MANIFEST_FILE in `find $(PRIVATE_SOURCE_INTERMEDIATES_DIR) \
 					-name Manifest.java 2> /dev/null`; do \
-		dir=`grep package $$GENERATED_MANIFEST_FILE | head -n1 | \
-			awk '{print $$2}' | tr -d ";" | tr . /`; \
+		dir=`awk '/package/{gsub(/\./,"/",$$2);gsub(/;/,"",$$2);print $$2;exit}' $$GENERATED_MANIFEST_FILE`; \
 		mkdir -p $(TARGET_COMMON_OUT_ROOT)/R/$$dir; \
 		$(ACP) -fp $$GENERATED_MANIFEST_FILE $(TARGET_COMMON_OUT_ROOT)/R/$$dir; \
 	done;
 	$(hide) for GENERATED_R_FILE in `find $(PRIVATE_SOURCE_INTERMEDIATES_DIR) \
 					-name R.java 2> /dev/null`; do \
-		dir=`grep package $$GENERATED_R_FILE | head -n1 | \
-			awk '{print $$2}' | tr -d ";" | tr . /`; \
+		dir=`awk '/package/{gsub(/\./,"/",$$2);gsub(/;/,"",$$2);print $$2;exit}' $$GENERATED_R_FILE`; \
 		mkdir -p $(TARGET_COMMON_OUT_ROOT)/R/$$dir; \
 		$(ACP) -fp $$GENERATED_R_FILE $(TARGET_COMMON_OUT_ROOT)/R/$$dir \
 			|| exit 31; \
@@ -259,20 +296,20 @@ else
 # Most packages should link against the resources defined by framework-res.
 # Even if they don't have their own resources, they may use framework
 # resources.
-ifneq ($(filter-out current,$(LOCAL_SDK_VERSION)),)
+ifneq ($(filter-out current,$(LOCAL_SDK_RES_VERSION))$(if $(TARGET_BUILD_APPS),$(filter current,$(LOCAL_SDK_RES_VERSION))),)
 # for released sdk versions, the platform resources were built into android.jar.
 framework_res_package_export := \
-	$(HISTORICAL_SDK_VERSIONS_ROOT)/$(LOCAL_SDK_VERSION)/android.jar
+    $(HISTORICAL_SDK_VERSIONS_ROOT)/$(LOCAL_SDK_RES_VERSION)/android.jar
 framework_res_package_export_deps := $(framework_res_package_export)
-else # LOCAL_SDK_VERSION
+else # LOCAL_SDK_RES_VERSION
 framework_res_package_export := \
     $(call intermediates-dir-for,APPS,framework-res,,COMMON)/package-export.apk
 # We can't depend directly on the export.apk file; it won't get its
 # PRIVATE_ vars set up correctly if we do.  Instead, depend on the
 # corresponding R.stamp file, which lists the export.apk as a dependency.
 framework_res_package_export_deps := \
-	$(dir $(framework_res_package_export))src/R.stamp
-endif # LOCAL_SDK_VERSION
+    $(dir $(framework_res_package_export))src/R.stamp
+endif # LOCAL_SDK_RES_VERSION
 $(R_file_stamp): $(framework_res_package_export_deps)
 $(LOCAL_INTERMEDIATE_TARGETS): \
     PRIVATE_AAPT_INCLUDES := $(framework_res_package_export)
@@ -292,6 +329,34 @@ jni_shared_libraries := \
     $(addprefix $($(my_prefix)OUT_INTERMEDIATE_LIBRARIES)/, \
       $(addsuffix $(so_suffix), \
         $(LOCAL_JNI_SHARED_LIBRARIES)))
+
+# Include RS dynamically-generated libraries as well
+# Keep this ifneq, as the += otherwise adds spaces that need to be stripped.
+ifneq ($(rs_compatibility_jni_libs),)
+jni_shared_libraries += $(rs_compatibility_jni_libs)
+endif
+
+# App explicitly requires the prebuilt NDK libstlport_shared.so.
+# libstlport_shared.so should never go to the system image.
+# Instead it should be packaged into the apk.
+ifeq (stlport_shared,$(LOCAL_NDK_STL_VARIANT))
+ifndef LOCAL_SDK_VERSION
+$(error LOCAL_SDK_VERSION has to be defined together with LOCAL_NDK_STL_VARIANT, \
+    LOCAL_PACKAGE_NAME=$(LOCAL_PACKAGE_NAME))
+endif
+jni_shared_libraries += \
+    $(HISTORICAL_NDK_VERSIONS_ROOT)/current/sources/cxx-stl/stlport/libs/$(TARGET_CPU_ABI)/libstlport_shared.so
+endif
+
+# Set the abi directory used by the local JNI shared libraries.
+# (Doesn't change how the local shared libraries are compiled, just
+# sets where they are stored in the apk.)
+
+ifeq ($(LOCAL_JNI_SHARED_LIBRARIES_ABI),)
+    jni_shared_libraries_abi := $(TARGET_CPU_ABI)
+else
+    jni_shared_libraries_abi := $(LOCAL_JNI_SHARED_LIBRARIES_ABI)
+endif
 
 # Pick a key to sign the package with.  If this package hasn't specified
 # an explicit certificate, use the default.
@@ -322,6 +387,9 @@ $(LOCAL_BUILT_MODULE): PRIVATE_CERTIFICATE := $(certificate)
 
 PACKAGES.$(LOCAL_PACKAGE_NAME).PRIVATE_KEY := $(private_key)
 PACKAGES.$(LOCAL_PACKAGE_NAME).CERTIFICATE := $(certificate)
+
+$(LOCAL_BUILT_MODULE): PRIVATE_ADDITIONAL_CERTIFICATES := $(foreach c,\
+    $(LOCAL_ADDITIONAL_CERTIFICATES), $(c).x509.pem $(c).pk8)
 
 # Define the rule to build the actual package.
 $(LOCAL_BUILT_MODULE): $(AAPT) | $(ZIPALIGN)
@@ -357,15 +425,17 @@ ifneq ($(extra_jar_args),)
 	$(add-java-resources-to-package)
 endif
 	$(sign-package)
-	@# Alignment must happen after all other zip operations.
-	$(align-package)
 ifdef LOCAL_DEX_PREOPT
 	$(hide) rm -f $(patsubst %.apk,%.odex,$@)
 	$(call dexpreopt-one-file,$@,$(patsubst %.apk,%.odex,$@))
 ifneq (nostripping,$(LOCAL_DEX_PREOPT))
 	$(call dexpreopt-remove-classes.dex,$@)
 endif
+endif
+	@# Alignment must happen after all other zip operations.
+	$(align-package)
 
+ifdef LOCAL_DEX_PREOPT
 built_odex := $(basename $(LOCAL_BUILT_MODULE)).odex
 $(built_odex): $(LOCAL_BUILT_MODULE)
 endif
@@ -378,6 +448,29 @@ PACKAGES.$(LOCAL_PACKAGE_NAME).RESOURCE_OVERLAYS := $(package_resource_overlays)
 endif
 
 PACKAGES := $(PACKAGES) $(LOCAL_PACKAGE_NAME)
+
+# Dist the files that can be bundled in system.img.
+# They include the jni shared libraries and the apk with jni libraries stripped.
+ifeq ($(LOCAL_DIST_BUNDLED_BINARIES),true)
+ifneq ($(filter $(LOCAL_PACKAGE_NAME),$(TARGET_BUILD_APPS)),)
+ifneq ($(strip $(jni_shared_libraries)),)
+dist_subdir := bundled_$(LOCAL_PACKAGE_NAME)
+$(foreach f, $(jni_shared_libraries), \
+  $(call dist-for-goals, apps_only, $(f):$(dist_subdir)/$(notdir $(f))))
+
+apk_jni_stripped := $(intermediates)/jni_stripped/package.apk
+$(apk_jni_stripped): PRIVATE_JNI_SHARED_LIBRARIES := $(notdir $(jni_shared_libraries))
+$(apk_jni_stripped) : $(LOCAL_BUILT_MODULE) | $(ZIPALIGN)
+	@rm -rf $(dir $@) && mkdir -p $(dir $@)
+	$(hide) cp $< $@
+	$(hide) zip -d $@ $(foreach f,$(PRIVATE_JNI_SHARED_LIBRARIES),\*/$(f))
+	$(call align-package)
+
+$(call dist-for-goals, apps_only, $(apk_jni_stripped):$(dist_subdir)/$(LOCAL_PACKAGE_NAME).apk)
+
+endif  # jni_shared_libraries
+endif  # apps_only build
+endif  # LOCAL_DIST_BUNDLED_BINARIES
 
 # Lint phony targets
 .PHONY: lint-$(LOCAL_PACKAGE_NAME)
