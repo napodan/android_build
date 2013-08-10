@@ -61,7 +61,6 @@ PRODUCT_PACKAGES += \
     libc \
     libcamera_client \
     libcameraservice \
-    libchromium_net \
     libctest \
     libcutils \
     libdbus \
@@ -81,11 +80,9 @@ PRODUCT_PACKAGES += \
     libmedia \
     libmedia_jni \
     libmediaplayerservice \
-    libmtp \
     libnetlink \
     libnetutils \
     libpixelflinger \
-    libpower \
     libreverbwrapper \
     libril \
     librtp_jni \
@@ -100,17 +97,14 @@ PRODUCT_PACKAGES += \
     libstagefright_enc_common \
     libstagefright_foundation \
     libstagefright_omx \
-    libstagefright_yuv \
     libstdc++ \
     libstlport \
     libsurfaceflinger \
     libsurfaceflinger_client \
-    libsurfaceflinger_ddmconnection \
     libsystem_server \
     libsysutils \
     libthread_db \
     libui \
-    libusbhost \
     libutils \
     libvisualizer \
     libvorbisidec \
@@ -137,7 +131,6 @@ PRODUCT_PACKAGES += \
     service \
     servicemanager \
     services \
-    settings \
     surfaceflinger \
     svc \
     system_server \
