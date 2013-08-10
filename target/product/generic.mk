@@ -14,13 +14,12 @@
 # limitations under the License.
 #
 
-# This is a generic product that isn't specialized for a specific device.
+# This is a generic phone product that isn't specialized for a specific device.
 # It includes the base Android platform.
 
 PRODUCT_PACKAGES := \
     AccountAndSyncSettings \
     DeskClock \
-    AlarmProvider \
     Bluetooth \
     Calculator \
     Calendar \
@@ -34,11 +33,8 @@ PRODUCT_PACKAGES := \
     Mms \
     Music \
     Settings \
-    Sync \
     SystemUI \
-    Updater \
     CalendarProvider \
-    SyncProvider
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core.mk)
 
