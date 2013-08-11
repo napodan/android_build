@@ -291,7 +291,7 @@ enable_target_debugging := true
 tags_to_install :=
 ifneq (,$(user_variant))
   # Target is secure in user builds.
-  ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=1
+  ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=0
 
   ifeq ($(user_variant),userdebug)
     # Pick up some extra useful tools
@@ -316,7 +316,7 @@ ifneq (,$(user_variant))
   endif
 
   # Disallow mock locations by default for user builds
-  ADDITIONAL_DEFAULT_PROPERTIES += ro.allow.mock.location=0
+  ADDITIONAL_DEFAULT_PROPERTIES += ro.allow.mock.location=1
 
 else # !user_variant
   # Turn on checkjni for non-user builds.
@@ -334,7 +334,7 @@ ifeq (true,$(strip $(enable_target_debugging)))
   INCLUDE_TEST_OTA_KEYS := true
 else # !enable_target_debugging
   # Target is less debuggable and adbd is off by default
-  ADDITIONAL_DEFAULT_PROPERTIES += ro.debuggable=0
+  ADDITIONAL_DEFAULT_PROPERTIES += ro.debuggable=1 persist.service.adb.enable=1
 endif # !enable_target_debugging
 
 ## eng ##
