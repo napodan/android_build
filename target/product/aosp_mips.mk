@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2011 The Android Open Source Project
+# Copyright 2013 The Android Open-Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+$(call inherit-product, $(SRC_TARGET_DIR)/product/full_mips.mk)
 
-include build/target/board/generic/BoardConfig.mk
-
-TARGET_ARCH_VARIANT := armv5te
-TARGET_CPU_ABI := armeabi
-TARGET_CPU_ABI2 :=
-ARCH_ARM_HAVE_TLS_REGISTER := false
-
-WITH_DEXPREOPT := false
+PRODUCT_NAME := aosp_mips
