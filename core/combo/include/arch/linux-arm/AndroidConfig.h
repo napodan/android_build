@@ -212,6 +212,10 @@
 #define __ANDROID__
 #endif
 
+#ifndef __ARM_FEATURE_DSP
+#define __ARM_FEATURE_DSP
+#endif
+
 /*
  * Define if we have <malloc.h> header
  */
