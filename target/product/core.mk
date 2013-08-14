@@ -71,9 +71,6 @@ PRODUCT_PACKAGES := \
     UserDictionaryProvider \
     PackageInstaller \
     DefaultContainerService \
-    zoneinfo.dat \
-    zoneinfo.idx \
-    zoneinfo.version
 
 
 # host-only dependencies
