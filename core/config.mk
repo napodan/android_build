@@ -33,7 +33,7 @@ SRC_HEADERS := \
 	$(TOPDIR)hardware/libhardware/include \
 	$(TOPDIR)hardware/libhardware_legacy/include \
 	$(TOPDIR)hardware/ril/include \
-	$(TOPDIR)dalvik/libnativehelper/include \
+	$(TOPDIR)libnativehelper/include \
 	$(TOPDIR)frameworks/base/include \
 	$(TOPDIR)frameworks/base/opengl/include \
     $(TOPDIR)frameworks/base/native/include \
