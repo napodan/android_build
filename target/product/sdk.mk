@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+PRODUCT_POLICY := android.policy_phone
 PRODUCT_PROPERTY_OVERRIDES :=
 
 PRODUCT_PACKAGES := \
@@ -39,6 +40,7 @@ PRODUCT_PACKAGES := \
 	sqlite3 \
 	LatinIME \
 	PinyinIME \
+	Phone \
 	OpenWnn \
 	libWnnEngDic \
 	libWnnJpnDic \
