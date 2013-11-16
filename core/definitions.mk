@@ -949,12 +949,11 @@ endef
 define transform-c-or-s-to-o-no-deps
 @mkdir -p $(dir $@)
 $(hide) $(PRIVATE_CC) \
-	$(addprefix -I , $(PRIVATE_C_INCLUDES)) \
+	$(addprefix -I , $(PRIVATE_C_INCLUDES)  $(PRIVATE_TARGET_PROJECT_INCLUDES)) \
 	$(shell cat $(PRIVATE_IMPORT_INCLUDES)) \
 	$(addprefix -isystem ,\
 	    $(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
 	        $(filter-out $(PRIVATE_C_INCLUDES), \
-	            $(PRIVATE_TARGET_PROJECT_INCLUDES) \
 	            $(PRIVATE_TARGET_C_INCLUDES)))) \
 	-c \
 	$(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
