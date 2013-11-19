@@ -86,41 +86,35 @@ public class ClassInfo {
         return mIsFinal;
     }
     
-    // Find a superclass implementation of the given method.  Looking at our superclass
-    // instead of at 'this' is unusual, but it fits the point-of-call demands well.
-    public MethodInfo overriddenMethod(MethodInfo candidate) {
-        if (mSuperClass == null) {
+    // Find a superclass implementation of the given method.
+    public static MethodInfo overriddenMethod(MethodInfo candidate, ClassInfo newClassObj) {
+        if (newClassObj == null) {
             return null;
         }
-        
-        // does our immediate superclass have it?
-        ClassInfo sup = mSuperClass;
-        for (MethodInfo mi : sup.mMethods.values()) {
+        for (MethodInfo mi : newClassObj.mMethods.values()) {
             if (mi.matches(candidate)) {
                 // found it
                 return mi;
             }
         }
 
-        // no, so recurse
-        if (sup.mSuperClass != null) {
-            return mSuperClass.overriddenMethod(candidate);
-        }
-        
-        // no parent, so we just don't have it
-        return null;
+        // not found here. recursively search ancestors
+        return ClassInfo.overriddenMethod(candidate, newClassObj.mSuperClass);
     }
     
     // Find a superinterface declaration of the given method.
-    public MethodInfo interfaceMethod(MethodInfo candidate) {
-        for (ClassInfo interfaceInfo : mInterfaces) {
+    public static MethodInfo interfaceMethod(MethodInfo candidate, ClassInfo newClassObj) {
+        if (newClassObj == null) {
+            return null;
+        }
+        for (ClassInfo interfaceInfo : newClassObj.mInterfaces) {
             for (MethodInfo mi : interfaceInfo.mMethods.values()) {
                 if (mi.matches(candidate)) {
                     return mi;
                 }
             }
         }
-        return (mSuperClass != null) ? mSuperClass.interfaceMethod(candidate) : null;
+        return ClassInfo.interfaceMethod(candidate, newClassObj.mSuperClass);
     }
 
     public boolean isConsistent(ClassInfo cl) {
@@ -135,11 +129,7 @@ public class ClassInfo {
             consistent = false;
         }
         for (String iface : mInterfaceNames) {
-            boolean found = false;
-            for (ClassInfo c = cl; c != null && !found; c = c.mSuperClass) {
-                found = c.mInterfaceNames.contains(iface);
-            }
-            if (!found) {
+            if (!implementsInterface(cl, iface)) {
                 Errors.error(Errors.REMOVED_INTERFACE, cl.position(),
                         "Class " + qualifiedName() + " no longer implements " + iface);
             }
@@ -163,9 +153,9 @@ public class ClassInfo {
                  * Check our ancestry to see if there's an inherited version that still
                  * fulfills the API requirement.
                  */
-                MethodInfo mi = mInfo.containingClass().overriddenMethod(mInfo);
+                MethodInfo mi = ClassInfo.overriddenMethod(mInfo, cl);
                 if (mi == null) {
-                    mi = mInfo.containingClass().interfaceMethod(mInfo);
+                    mi = ClassInfo.interfaceMethod(mInfo, cl);
                 }
                 if (mi == null) {
                     Errors.error(Errors.REMOVED_METHOD, mInfo.position(),
@@ -179,7 +169,7 @@ public class ClassInfo {
                 /* Similarly to the above, do not fail if this "new" method is
                  * really an override of an existing superclass method.
                  */
-                MethodInfo mi = mInfo.containingClass().overriddenMethod(mInfo);
+                MethodInfo mi = ClassInfo.overriddenMethod(mInfo, cl);
                 if (mi == null) {
                     Errors.error(Errors.ADDED_METHOD, mInfo.position(),
                             "Added public method " + mInfo.qualifiedName());
@@ -272,6 +262,26 @@ public class ClassInfo {
         }
         
         return consistent;
+    }
+
+    /**
+     * Returns true if {@code cl} implements the interface {@code iface} either
+     * by either being that interface, implementing that interface or extending
+     * a type that implements the interface.
+     */
+    private boolean implementsInterface(ClassInfo cl, String iface) {
+        if (cl.qualifiedName().equals(iface)) {
+            return true;
+        }
+        for (ClassInfo clImplements : cl.mInterfaces) {
+            if (implementsInterface(clImplements, iface)) {
+                return true;
+            }
+        }
+        if (cl.mSuperClass != null && implementsInterface(cl.mSuperClass, iface)) {
+            return true;
+        }
+        return false;
     }
 
     public void resolveInterfaces(ApiInfo apiInfo) {

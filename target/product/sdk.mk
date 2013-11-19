@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+PRODUCT_POLICY := android.policy_phone
 PRODUCT_PROPERTY_OVERRIDES :=
 
 PRODUCT_PACKAGES := \
@@ -39,6 +40,7 @@ PRODUCT_PACKAGES := \
 	sqlite3 \
 	LatinIME \
 	PinyinIME \
+	Phone \
 	OpenWnn \
 	libWnnEngDic \
 	libWnnJpnDic \
@@ -112,6 +114,8 @@ PRODUCT_COPY_FILES := \
 	frameworks/base/data/etc/android.hardware.camera.autofocus.xml:system/etc/permissions/android.hardware.camera.autofocus.xml
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core.mk)
+
+$(call inherit-product, $(SRC_TARGET_DIR)/product/locales_full.mk)
 
 # Overrides
 PRODUCT_BRAND := generic
