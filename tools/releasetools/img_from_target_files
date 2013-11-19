@@ -23,6 +23,11 @@ Usage:  img_from_target_files [flags] input_target_files output_image_zip
   -b  (--board_config)  <file>
       Deprecated.
 
+  -f  (--fs_type) <value>
+      The file system type of the user image files to be created.
+      It can be ext fs variants, such as ext2, ext3, ext4, etc.
+      Default is yaffs.
+
 """
 
 import sys
@@ -146,13 +151,15 @@ def main(argv):
   def option_handler(o, a):
     if o in ("-b", "--board_config"):
       pass       # deprecated
+    elif o in ("-f", "--fs_type"):
+      USERIMAGE_OPTIONS.fs_type = a
     else:
       return False
     return True
 
   args = common.ParseOptions(argv, __doc__,
-                             extra_opts="b:",
-                             extra_long_opts=["board_config="],
+                             extra_opts="b:f:",
+                             extra_long_opts=["board_config=", "fs_type="],
                              extra_option_handler=option_handler)
 
   if len(args) != 2:

@@ -41,7 +41,7 @@ CTS_CORE_CASE_LIST := \
 -include cts/CtsTestCaseList.mk
 CTS_CASE_LIST := $(CTS_CORE_CASE_LIST) $(CTS_TEST_CASE_LIST)
 
-DEFAULT_TEST_PLAN := $(PRIVATE_DIR)/resource/plans
+DEFAULT_TEST_PLAN := $(cts_dir)/$(cts_name)/resource/plans
 
 $(cts_dir)/all_cts_files_stamp: PRIVATE_JUNIT_HOST_JAR := $(junit_host_jar)
 

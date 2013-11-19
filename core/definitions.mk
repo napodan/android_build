@@ -1236,7 +1236,7 @@ $(hide) $(AAPT) package $(PRIVATE_AAPT_FLAGS) -m \
     $(addprefix --min-sdk-version , $(DEFAULT_APP_TARGET_SDK)) \
     $(addprefix --target-sdk-version , $(DEFAULT_APP_TARGET_SDK)) \
     $(if $(filter --version-code,$(PRIVATE_AAPT_FLAGS)),,$(addprefix --version-code , $(PLATFORM_SDK_VERSION))) \
-    $(if $(filter --version-name,$(PRIVATE_AAPT_FLAGS)),,$(addprefix --version-name , $(PLATFORM_VERSION))) \
+    $(if $(filter --version-name,$(PRIVATE_AAPT_FLAGS)),,$(addprefix --version-name , $(PLATFORM_VERSION)-$(BUILD_NUMBER))) \
     $(addprefix --rename-manifest-package , $(PRIVATE_MANIFEST_PACKAGE_NAME)) \
     $(addprefix --rename-instrumentation-target-package , $(PRIVATE_MANIFEST_INSTRUMENTATION_FOR))
 endef
@@ -1387,7 +1387,7 @@ $(hide) $(AAPT) package -u $(PRIVATE_AAPT_FLAGS) \
     $(addprefix --target-sdk-version , $(DEFAULT_APP_TARGET_SDK)) \
     $(addprefix --product , $(TARGET_AAPT_CHARACTERISTICS)) \
     $(if $(filter --version-code,$(PRIVATE_AAPT_FLAGS)),,$(addprefix --version-code , $(PLATFORM_SDK_VERSION))) \
-    $(if $(filter --version-name,$(PRIVATE_AAPT_FLAGS)),,$(addprefix --version-name , $(PLATFORM_VERSION))) \
+    $(if $(filter --version-name,$(PRIVATE_AAPT_FLAGS)),,$(addprefix --version-name , $(PLATFORM_VERSION)-$(BUILD_NUMBER))) \
     $(addprefix --rename-manifest-package , $(PRIVATE_MANIFEST_PACKAGE_NAME)) \
     $(addprefix --rename-instrumentation-target-package , $(PRIVATE_MANIFEST_INSTRUMENTATION_FOR)) \
     -F $@
@@ -1395,8 +1395,8 @@ endef
 
 define add-jni-shared-libs-to-package
 $(hide) rm -rf $(dir $@)lib
-$(hide) mkdir -p $(dir $@)lib/$(TARGET_CPU_ABI)
-$(hide) cp $(PRIVATE_JNI_SHARED_LIBRARIES) $(dir $@)lib/$(TARGET_CPU_ABI)
+$(hide) mkdir -p $(dir $@)lib/$(PRIVATE_JNI_SHARED_LIBRARIES_ABI)
+$(hide) cp $(PRIVATE_JNI_SHARED_LIBRARIES) $(dir $@)lib/$(PRIVATE_JNI_SHARED_LIBRARIES_ABI)
 $(hide) (cd $(dir $@) && zip -r $(notdir $@) lib)
 $(hide) rm -rf $(dir $@)lib
 endef

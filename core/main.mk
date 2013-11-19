@@ -735,15 +735,12 @@ else # TARGET_BUILD_APPS
 # Building a full system-- the default is to build droidcore
 droid: droidcore dist_libraries
 
-endif
+endif # TARGET_BUILD_APPS
+endif # droid in $(MAKECMDGOALS)
 
 
 .PHONY: droid tests
 tests: droidcore
-
-# phony target that include any targets in $(ALL_MODULES)
-.PHONY: all_modules
-all_modules: $(ALL_MODULES)
 
 .PHONY: docs
 docs: $(ALL_DOCS)
