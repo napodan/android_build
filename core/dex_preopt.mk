@@ -6,6 +6,7 @@
 # TODO: replace it with device's BOOTCLASSPATH
 DEXPREOPT_BOOT_JARS := core:core-junit:bouncycastle:ext:framework:android.policy:services:apache-xml
 DEXPREOPT_BOOT_JARS_MODULES := $(subst :, ,$(DEXPREOPT_BOOT_JARS))
+PRODUCT_BOOTCLASSPATH := $(subst $(space),:,$(foreach m,$(DEXPREOPT_BOOT_JARS_MODULES),/system/framework/$(m).jar))
 
 DEXPREOPT_BUILD_DIR := $(OUT_DIR)
 DEXPREOPT_PRODUCT_DIR := $(patsubst $(DEXPREOPT_BUILD_DIR)/%,%,$(PRODUCT_OUT))/dex_bootjars
