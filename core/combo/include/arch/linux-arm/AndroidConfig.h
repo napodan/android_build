@@ -208,10 +208,6 @@
 #define __linux__
 #endif
 
-#ifndef __ANDROID__
-#define __ANDROID__
-#endif
-
 #ifndef __ARM_FEATURE_DSP
 #define __ARM_FEATURE_DSP
 #endif
