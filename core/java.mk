@@ -84,18 +84,10 @@ ifeq ($(LOCAL_PROGUARD_ENABLED),disabled)
 LOCAL_PROGUARD_ENABLED :=
 endif
 
-# By giving different file name, files can be updated correctly when switching
-# between builds with and without Proguard enabled.
-# Note that ANY intermediate targets between the proguard and
-# the final built_dex should be differently named!
 ifdef LOCAL_PROGUARD_ENABLED
 proguard_jar_leaf := proguard.classes.jar
-built_dex_intermediate_leaf := proguard.$(built_dex_intermediate_leaf)
-built_dex_leaf := proguard.classes.dex
 else
 proguard_jar_leaf := noproguard.classes.jar
-built_dex_intermediate_leaf := noproguard.$(built_dex_intermediate_leaf)
-built_dex_leaf := noproguard.classes.dex
 endif
 
 full_classes_compiled_jar := $(intermediates.COMMON)/$(full_classes_compiled_jar_leaf)
@@ -115,7 +107,7 @@ full_classes_jar :=
 built_dex :=
 else
 full_classes_jar := $(intermediates.COMMON)/classes.jar
-built_dex := $(intermediates.COMMON)/$(built_dex_leaf)
+built_dex := $(intermediates.COMMON)/classes.dex
 endif
 
 LOCAL_INTERMEDIATE_TARGETS += \
@@ -305,13 +297,6 @@ $(LOCAL_INTERMEDIATE_TARGETS): \
 $(cleantarget): PRIVATE_CLEAN_FILES += $(intermediates.COMMON)
 
 ifdef full_classes_jar
-# If LOCAL_BUILT_MODULE_STEM wasn't overridden by our caller,
-# full_classes_jar will be the same module as LOCAL_BUILT_MODULE.
-# Otherwise, the caller will define it as a prerequisite of
-# LOCAL_BUILT_MODULE, so it will inherit the necessary PRIVATE_*
-# variable definitions.
-full_classes_jar := $(intermediates.COMMON)/classes.jar
-built_dex := $(intermediates.COMMON)/$(built_dex_leaf)
 
 # Droiddoc isn't currently able to generate stubs for modules, so we're just
 # allowing it to use the classes.jar as the "stubs" that would be use to link
@@ -339,6 +324,7 @@ $(full_classes_compiled_jar): PRIVATE_WARNINGS_ENABLE := $(LOCAL_WARNINGS_ENABLE
 # via deps on the target that generates the sources.
 $(full_classes_compiled_jar): PRIVATE_JAVACFLAGS := $(LOCAL_JAVACFLAGS)
 $(full_classes_compiled_jar): PRIVATE_JAR_EXCLUDE_FILES := $(LOCAL_JAR_EXCLUDE_FILES)
+$(full_classes_compiled_jar): PRIVATE_JAR_PACKAGES := $(LOCAL_JAR_PACKAGES)
 $(full_classes_compiled_jar): PRIVATE_DONT_DELETE_JAR_META_INF := $(LOCAL_DONT_DELETE_JAR_META_INF)
 $(full_classes_compiled_jar): $(java_sources) $(java_resource_sources) $(full_java_lib_deps) \
         $(jar_manifest_file) $(layers_file) $(RenderScript_file_stamp) \
@@ -350,7 +336,7 @@ $(full_classes_compiled_jar): PRIVATE_JAVAC_DEBUG_FLAGS := -g
 # Run jarjar if necessary, otherwise just copy the file.
 ifneq ($(strip $(LOCAL_JARJAR_RULES)),)
 $(full_classes_jarjar_jar): PRIVATE_JARJAR_RULES := $(LOCAL_JARJAR_RULES)
-$(full_classes_jarjar_jar): $(full_classes_compiled_jar) | $(JARJAR)
+$(full_classes_jarjar_jar): $(full_classes_compiled_jar) $(LOCAL_JARJAR_RULES) | $(JARJAR)
 	@echo JarJar: $@
 	$(hide) java -jar $(JARJAR) process $(PRIVATE_JARJAR_RULES) $< $@
 else

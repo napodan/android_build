@@ -97,3 +97,5 @@ endif
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/base.mk)
 
+DEX_PREOPT_DEFAULT := true
+
