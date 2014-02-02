@@ -147,7 +147,7 @@ endef
 # $(1): directory to search under
 # Ignores $(1)/Android.mk
 define first-makefiles-under
-$(shell build/tools/findleaves.py --prune=out --prune=.repo --prune=.git \
+$(shell build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git \
         --mindepth=2 $(1) Android.mk)
 endef
 
@@ -915,16 +915,17 @@ endef
 ###########################################################
 ## Commands for running gcc to compile a C++ file
 ###########################################################
-# -isystem doesn't work with g++ 4.4.3 and c++ headers
+
 define transform-cpp-to-o
 @mkdir -p $(dir $@)
 @echo "target $(PRIVATE_ARM_MODE) C++: $(PRIVATE_MODULE) <= $<"
 $(hide) $(PRIVATE_CXX) \
-	$(addprefix -I , $(PRIVATE_C_INCLUDES) $(PRIVATE_TARGET_PROJECT_INCLUDES)) \
+	$(addprefix -I , $(PRIVATE_C_INCLUDES)) \
 	$(shell cat $(PRIVATE_IMPORT_INCLUDES)) \
 	$(addprefix -isystem ,\
 	    $(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
 	        $(filter-out $(PRIVATE_C_INCLUDES), \
+	            $(PRIVATE_TARGET_PROJECT_INCLUDES) \
 	            $(PRIVATE_TARGET_C_INCLUDES)))) \
 	-c \
 	$(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
@@ -949,11 +950,12 @@ endef
 define transform-c-or-s-to-o-no-deps
 @mkdir -p $(dir $@)
 $(hide) $(PRIVATE_CC) \
-	$(addprefix -I , $(PRIVATE_C_INCLUDES)  $(PRIVATE_TARGET_PROJECT_INCLUDES)) \
+	$(addprefix -I , $(PRIVATE_C_INCLUDES)) \
 	$(shell cat $(PRIVATE_IMPORT_INCLUDES)) \
 	$(addprefix -isystem ,\
 	    $(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
 	        $(filter-out $(PRIVATE_C_INCLUDES), \
+	            $(PRIVATE_TARGET_PROJECT_INCLUDES) \
 	            $(PRIVATE_TARGET_C_INCLUDES)))) \
 	-c \
 	$(if $(PRIVATE_NO_DEFAULT_COMPILER_FLAGS),, \
