@@ -98,4 +98,5 @@ endif
 $(call inherit-product, $(SRC_TARGET_DIR)/product/base.mk)
 
 DEX_PREOPT_DEFAULT := true
+PRODUCT_BOOT_JARS := core:core-junit:bouncycastle:ext:framework:android.policy:services:apache-xml
 
