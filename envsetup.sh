@@ -315,7 +315,7 @@ function chooseproduct()
         if [ "$TARGET_SIMULATOR" = true ] ; then
             default_value=sim
         else
-            default_value=full
+            default_value=generic
         fi
     fi
 
@@ -469,7 +469,7 @@ function lunch()
         answer=$1
     else
         print_lunch_menu
-        echo -n "Which would you like? [full-eng] "
+        echo -n "Which would you like? [generic-eng] "
         read answer
     fi
 
@@ -477,7 +477,7 @@ function lunch()
 
     if [ -z "$answer" ]
     then
-        selection=full-eng
+        selection=generic-eng
     elif [ "$answer" = "simulator" ]
     then
         selection=simulator
@@ -565,7 +565,7 @@ function tapas()
         apps=all
     fi
 
-    export TARGET_PRODUCT=full
+    export TARGET_PRODUCT=generic
     export TARGET_BUILD_VARIANT=$variant
     export TARGET_SIMULATOR=false
     export TARGET_BUILD_TYPE=release
