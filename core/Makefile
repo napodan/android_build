@@ -1149,11 +1149,8 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(OTATOOLS)
 	   --override_device=$(override_device) \
            $(BUILT_TARGET_FILES_PACKAGE) $@
 
-.PHONY: otapackage oxygen
+.PHONY: otapackage
 otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
-oxygen: otapackage
-	$(hide) \
-           ./vendor/oxygen/tools/squisher
 
 # -----------------------------------------------------------------
 # The update package
